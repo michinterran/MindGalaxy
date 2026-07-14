@@ -1,4 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MindGalaxy
+
+MindGalaxy is a web-first MVP for a personal AI knowledge repository. Users paste
+AI chats or web-document text, MindGalaxy preserves the raw source first, then
+structures it into graph records for inbox review, 2D mindmap exploration,
+Galaxy beta browsing, grounded search, and export.
+
+## Step 1 Status
+
+- Next.js App Router scaffold with TypeScript, Tailwind CSS, ESLint, and npm.
+- Build-safe lazy helpers for Supabase browser/server clients and OpenAI.
+- Initial domain types for captures, sources, nodes, edges, contexts, jobs,
+  revisions, and exports.
+- Static black-first app shell that shows quick capture, inbox/list, 2D map,
+  Galaxy beta, search/source detail, and export readiness.
+- Planning and architecture docs are under `docs/`.
+
+## Step 2 Status
+
+- Local Supabase migration draft added under `supabase/migrations/`.
+- Initial RLS policies drafted for workspace-owned data.
+- Manual database TypeScript shape added in `src/types/database.ts`.
+- Capture validation and persistence boundary added.
+- API route boundaries added for captures and processing jobs.
+- No remote Supabase project has been modified yet.
+
+## Step 3 Status
+
+- Google OAuth and email magic-link entry points added.
+- Supabase `/auth/callback` route exchanges OAuth codes for session cookies.
+- First login automatically bootstraps a personal `MindGalaxy` workspace and
+  `owner` membership.
+- Quick Capture panel now posts to `POST /api/captures` when logged in.
+- Auth secrets remain in Supabase Dashboard; only publishable Supabase env vars
+  are stored locally.
 
 ## Getting Started
 
@@ -6,31 +40,39 @@ First, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app builds without environment variables. Real Supabase/OpenAI features will
+activate only when these are present:
 
-## Learn More
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+OPENAI_API_KEY=
+```
 
-To learn more about Next.js, take a look at the following resources:
+Do not use or expose a Supabase service-role key in browser code.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture Docs
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `docs/01-plan/features/mindgalaxy-mvp.plan.md`
+- `docs/03-architecture/step1-architecture.md`
+- `docs/03-architecture/step2-data-api.md`
+- `docs/03-architecture/step3-auth-workspace.md`
 
-## Deploy on Vercel
+## Verification
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run lint
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Next Step
+
+Step 4 should implement the AI processing worker: take queued captures, call the
+OpenAI structured extraction prompt, create nodes/edges/contexts, and surface
+processing status in the app shell.
