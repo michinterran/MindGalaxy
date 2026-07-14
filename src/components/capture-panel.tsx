@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -11,10 +11,18 @@ import {
   MessageSquareText,
   Sparkles,
 } from "lucide-react";
+import {
+  CaptureClientError,
+  captureErrorMessage,
+  createCapture,
+} from "@/features/capture/api/capture-client";
+import { DEFAULT_LOCALE, formatInteger, t, type Locale } from "@/lib/i18n";
 
 type CapturePanelProps = {
   workspaceId: string;
+  autoFocus?: boolean;
   variant?: "panel" | "hero";
+  locale?: Locale;
 };
 
 type CaptureState =
@@ -23,7 +31,7 @@ type CaptureState =
   | { kind: "success"; message: string }
   | { kind: "error"; message: string };
 
-function detectSource(rawText: string) {
+function detectSource(rawText: string, locale: Locale) {
   const lower = rawText.toLowerCase();
 
   if (lower.includes("chatgpt") || lower.includes("openai")) {
@@ -38,10 +46,17 @@ function detectSource(rawText: string) {
     return { label: "Gemini", icon: Sparkles };
   }
 
-  return { label: rawText.trim() ? "붙여넣은 원문" : "원문 대기", icon: FileText };
+  return {
+    label: rawText.trim()
+      ? t(locale, "capture.source.pasted")
+      : t(locale, "capture.source.waiting"),
+    icon: FileText,
+  };
 }
 
 export function CapturePanel({
+  autoFocus = false,
+  locale = DEFAULT_LOCALE,
   workspaceId,
   variant = "panel",
 }: CapturePanelProps) {
@@ -51,71 +66,87 @@ export function CapturePanel({
   const [showTitle, setShowTitle] = useState(false);
   const [state, setState] = useState<CaptureState>({
     kind: "idle",
-    message: "원문 먼저 저장",
+    message: t(locale, "capture.status.idle"),
   });
+  const requestRef = useRef<{ signature: string; requestId: string } | null>(null);
+  const rawTextRef = useRef<HTMLTextAreaElement>(null);
   const [isPending, startTransition] = useTransition();
-  const source = useMemo(() => detectSource(rawText), [rawText]);
+  const source = useMemo(() => detectSource(rawText, locale), [locale, rawText]);
   const SourceIcon = source.icon;
   const textLength = rawText.trim().length;
   const isHero = variant === "hero";
 
+  useEffect(() => {
+    if (autoFocus) {
+      rawTextRef.current?.focus();
+    }
+  }, [autoFocus]);
+
   function submitCapture() {
     const trimmed = rawText.trim();
+    const trimmedTitle = title.trim();
 
     if (!trimmed) {
       setState({
         kind: "error",
-        message: "붙여넣은 내용이 필요합니다.",
+        message: t(locale, "capture.status.emptyError"),
       });
       return;
     }
 
+    const inputSignature = JSON.stringify({
+      rawText: trimmed,
+      sourceLabel: source.label,
+      title: trimmedTitle,
+      workspaceId,
+    });
+
+    if (requestRef.current?.signature !== inputSignature) {
+      requestRef.current = {
+        signature: inputSignature,
+        requestId: crypto.randomUUID(),
+      };
+    }
+
+    const requestId = requestRef.current.requestId;
+
     setState({
       kind: "saving",
-      message: "원문 저장 중",
+      message: t(locale, "capture.status.saving"),
     });
 
     startTransition(async () => {
       try {
-        const response = await fetch("/api/captures", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        await createCapture({
+          workspaceId,
+          requestId,
+          metadata: {},
+          title: trimmedTitle || undefined,
+          rawText: trimmed,
+          sourceKind: "paste",
+          source: {
+            label: source.label,
+            metadata: {},
+            provider: "manual",
           },
-          body: JSON.stringify({
-            workspaceId,
-            title: title.trim() || undefined,
-            rawText: trimmed,
-            sourceKind: "paste",
-            source: {
-              label: source.label,
-              provider: "manual",
-            },
-          }),
         });
-
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(body?.error ?? "CAPTURE_CREATE_FAILED");
-        }
 
         setTitle("");
         setRawText("");
         setShowTitle(false);
+        requestRef.current = null;
         setState({
           kind: "success",
-          message: "저장 완료",
+          message: t(locale, "capture.status.success"),
         });
         router.refresh();
       } catch (error) {
         setState({
           kind: "error",
           message:
-            error instanceof Error
-              ? `저장 실패: ${error.message}`
-              : "저장 실패",
+            error instanceof CaptureClientError
+              ? captureErrorMessage(locale, error.code)
+              : t(locale, "capture.status.error"),
         });
       }
     });
@@ -124,12 +155,16 @@ export function CapturePanel({
   return (
     <section
       className={`capture-panel ${isHero ? "capture-panel--hero" : ""}`}
-      aria-label="새 자료 붙여넣기"
+      aria-label={t(locale, "capture.aria")}
     >
       <div className="capture-panel__header">
         <div>
-          <p className="ui-kicker">새 자료</p>
-          <h2>{isHero ? "기억할 내용을 붙여넣으세요" : "Quick Capture"}</h2>
+          <p className="ui-kicker">{t(locale, "capture.newMaterial")}</p>
+          <h2>
+            {isHero
+              ? t(locale, "capture.heroTitle")
+              : t(locale, "capture.panelTitle")}
+          </h2>
         </div>
         <div className="source-pill">
           <SourceIcon className="size-4" />
@@ -139,11 +174,11 @@ export function CapturePanel({
 
       {showTitle ? (
         <label className="field-label" htmlFor="capture-title">
-          제목
+          {t(locale, "capture.titleLabel")}
           <input
             id="capture-title"
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="비워두면 AI가 제안"
+            placeholder={t(locale, "capture.titlePlaceholder")}
             type="text"
             value={title}
           />
@@ -151,11 +186,12 @@ export function CapturePanel({
       ) : null}
 
       <label className="field-label" htmlFor="capture-raw-text">
-        원문
+        {t(locale, "capture.rawTextLabel")}
         <textarea
           id="capture-raw-text"
           onChange={(event) => setRawText(event.target.value)}
-          placeholder="ChatGPT, Claude, Gemini 답변이나 회의 메모를 그대로 붙여넣기"
+          placeholder={t(locale, "capture.rawTextPlaceholder")}
+          ref={rawTextRef}
           value={rawText}
         />
       </label>
@@ -166,9 +202,15 @@ export function CapturePanel({
           onClick={() => setShowTitle((value) => !value)}
           type="button"
         >
-          {showTitle ? "제목 숨기기" : "제목 직접 입력"}
+          {showTitle
+            ? t(locale, "capture.hideTitle")
+            : t(locale, "capture.showTitle")}
         </button>
-        <span>{textLength.toLocaleString()}자</span>
+        <span>
+          {t(locale, "capture.characterUnit", {
+            count: formatInteger(locale, textLength),
+          })}
+        </span>
       </div>
 
       <div className={`status-line status-line--${state.kind}`}>
@@ -183,7 +225,9 @@ export function CapturePanel({
         onClick={submitCapture}
         type="button"
       >
-        {isPending ? "저장 중" : "정리 시작"}
+        {isPending
+          ? t(locale, "capture.cta.pending")
+          : t(locale, "capture.cta.idle")}
         <ArrowRight className="size-4" />
       </button>
     </section>

@@ -46,11 +46,13 @@ export type CaptureRow = RowTimestamps & {
   id: string;
   workspace_id: string;
   project_id: string | null;
+  idempotency_key: string | null;
   title: string | null;
   raw_text: string;
   source_kind: CaptureSourceKind;
   created_by: string;
   embedding: number[] | null;
+  search_document: string;
   metadata: Json;
   updated_at: string;
 };
@@ -82,6 +84,11 @@ export type ProcessingJobRow = RowTimestamps & {
   metadata: Json;
   started_at: string | null;
   completed_at: string | null;
+  claimed_by: string | null;
+  lease_expires_at: string | null;
+  last_heartbeat_at: string | null;
+  next_run_at: string;
+  max_attempts: number;
   updated_at: string;
 };
 
@@ -96,6 +103,7 @@ export type MindNodeRow = RowTimestamps & {
   evidence_snippet: string | null;
   confidence: number | null;
   embedding: number[] | null;
+  search_document: string;
   metadata: Json;
   updated_at: string;
 };
@@ -156,6 +164,34 @@ export type ExportRow = RowTimestamps & {
   updated_at: string;
 };
 
+export type OutboxEventRow = RowTimestamps & {
+  id: string;
+  workspace_id: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  event_type: string;
+  dedupe_key: string;
+  payload: Json;
+  status: "pending" | "processing" | "published" | "failed";
+  attempts: number;
+  available_at: string;
+  published_at: string | null;
+  updated_at: string;
+};
+
+export type JobAttemptRow = {
+  id: string;
+  workspace_id: string;
+  job_id: string;
+  attempt_number: number;
+  status: ProcessingStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  metadata: Json;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -201,6 +237,7 @@ export type Database = {
           id?: string;
           workspace_id: string;
           project_id?: string | null;
+          idempotency_key?: string | null;
           title?: string | null;
           raw_text: string;
           source_kind?: CaptureSourceKind;
@@ -250,10 +287,56 @@ export type Database = {
           metadata?: Json;
           started_at?: string | null;
           completed_at?: string | null;
+          claimed_by?: string | null;
+          lease_expires_at?: string | null;
+          last_heartbeat_at?: string | null;
+          next_run_at?: string;
+          max_attempts?: number;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Omit<ProcessingJobRow, "id" | "workspace_id" | "capture_id">>;
+        Relationships: [];
+      };
+      outbox_events: {
+        Row: OutboxEventRow;
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          aggregate_type: string;
+          aggregate_id: string;
+          event_type: string;
+          dedupe_key: string;
+          payload?: Json;
+          status?: OutboxEventRow["status"];
+          attempts?: number;
+          available_at?: string;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Omit<OutboxEventRow, "id" | "workspace_id" | "created_at">
+        >;
+        Relationships: [];
+      };
+      job_attempts: {
+        Row: JobAttemptRow;
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          job_id: string;
+          attempt_number: number;
+          status?: ProcessingStatus;
+          started_at?: string | null;
+          completed_at?: string | null;
+          error_message?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: Partial<
+          Omit<JobAttemptRow, "id" | "workspace_id" | "job_id" | "created_at">
+        >;
         Relationships: [];
       };
       nodes: {
@@ -304,7 +387,111 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_capture_command: {
+        Args: {
+          p_workspace_id: string;
+          p_request_id: string;
+          p_raw_text: string;
+          p_project_id?: string | null;
+          p_title?: string | null;
+          p_source_kind?: CaptureSourceKind;
+          p_source?: Json | null;
+          p_metadata?: Json;
+        };
+        Returns: {
+          capture_id: string;
+          workspace_id: string;
+          project_id: string | null;
+          title: string | null;
+          source_kind: CaptureSourceKind;
+          capture_created_at: string;
+          processing_job_id: string;
+          processing_job_status: ProcessingStatus;
+          processing_job_type: string;
+          processing_job_created_at: string;
+        }[];
+      };
+      claim_capture_analysis_job: {
+        Args: {
+          p_worker_id: string;
+          p_lease_seconds?: number;
+          p_model?: string | null;
+          p_prompt_version?: string | null;
+          p_max_attempts?: number;
+        };
+        Returns: {
+          job_id: string;
+          attempt_id: string;
+          attempt_number: number;
+          workspace_id: string;
+          capture_id: string;
+          raw_text: string;
+          source_kind: CaptureSourceKind;
+          title: string | null;
+          model: string;
+          prompt_version: string;
+        }[];
+      };
+      persist_capture_analysis_result: {
+        Args: {
+          p_job_id: string;
+          p_attempt_id: string;
+          p_worker_id: string;
+          p_result: Json;
+          p_model: string;
+          p_prompt_version: string;
+          p_confidence: number;
+          p_review_required?: boolean;
+          p_review_reasons?: Json;
+        };
+        Returns: {
+          job_id: string;
+          status: ProcessingStatus;
+          node_count: number;
+          edge_count: number;
+          context_count: number;
+        }[];
+      };
+      fail_capture_analysis_job: {
+        Args: {
+          p_job_id: string;
+          p_attempt_id: string;
+          p_worker_id: string;
+          p_error_code: string;
+          p_error_message?: string | null;
+          p_retry_delay_seconds?: number;
+          p_max_attempts?: number;
+        };
+        Returns: {
+          job_id: string;
+          status: ProcessingStatus;
+          retry_count: number;
+          next_run_at: string;
+        }[];
+      };
+      search_workspace_knowledge: {
+        Args: {
+          p_workspace_id: string;
+          p_query: string;
+          p_query_embedding?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          result_id: string;
+          source_type: "node" | "capture";
+          title: string;
+          snippet: string;
+          evidence: string | null;
+          node_kind: NodeKind | null;
+          capture_id: string | null;
+          lexical_score: number;
+          semantic_score: number;
+          graph_score: number;
+          final_score: number;
+        }[];
+      };
+    };
     Enums: {
       capture_source_kind: CaptureSourceKind;
       processing_status: ProcessingStatus;

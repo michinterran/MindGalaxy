@@ -1,8 +1,9 @@
 # Step 2 Data And API Boundary
 
-Status: implemented locally on 2026-07-14. The SQL migration is a draft and has
-not been applied to a Supabase project because the local Supabase CLI is not
-installed and no remote project is connected.
+Status: Step 2 was implemented locally on 2026-07-14, then extended by later
+MVP steps. The original Step 2 SQL remains part of the current migration chain,
+but remote migration application is still a deployment gate rather than a
+completed repo-side action.
 
 ## What Step 2 Adds
 
@@ -32,7 +33,7 @@ The schema keeps the product's source-of-truth layers separate:
   contexts.
 - `processing_jobs`: queued/running/completed/failed AI processing work.
 - `node_revisions`: future edit/reprocess audit trail.
-- `exports`: PDF/HTML now and PPT later.
+- `exports`: export audit metadata for HTML, PDF, and PPTX generation.
 
 The migration includes `extensions.vector(1536)` columns on `captures` and
 `nodes`, matching the intended OpenAI `text-embedding-3-small` embedding size.
@@ -76,7 +77,8 @@ and verify policy behavior with at least two users.
 5. Optionally inserts a capture source.
 6. Inserts a queued `processing_jobs` record.
 
-The route does not call OpenAI yet. It also does not log raw pasted text.
+The capture route does not call OpenAI directly. It stores the source and queues
+analysis work. It also does not log raw pasted text.
 
 `GET /api/captures` returns capture list metadata without returning `raw_text`.
 Source/full-text retrieval should be added through a dedicated detail route with
@@ -97,17 +99,24 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 
 Do not expose a Supabase service-role key to browser code.
 
-## Not Yet Done
+## Historical Step 2 Open Items And Current State
 
-- Migration has not been applied.
-- Supabase generated types have not been pulled.
-- API routes have not been tested against a real Supabase project.
-- AI processing worker is not implemented.
-- Search/RAG endpoints are not implemented.
-- Workspace bootstrap flow is not implemented.
+- Migration application: still not applied remotely from this repo. Use
+  `docs/04-operations/supabase-migration-runbook.md`.
+- Supabase generated types: still represented by the maintained manual
+  `src/types/database.ts` shape.
+- Real Supabase API verification: still a launch gate for the target project.
+- AI processing worker: implemented locally at
+  `POST /api/worker/analyze-captures` with server-only env requirements.
+- Search/RAG endpoint: implemented locally at `POST /api/search` with hybrid
+  SQL search and bounded grounded answers.
+- Workspace bootstrap: implemented in the auth flow after Step 2.
+- Export endpoint: implemented locally at `POST /api/exports` for HTML, PDF,
+  and PPTX.
 
-## Step 3 Recommendation
+## Current Recommendation
 
-Connect a Supabase project, install or configure Supabase tooling, apply the
-schema in a branch/local database, run advisors, then implement auth/workspace
-bootstrap and make the capture panel call `POST /api/captures`.
+Before production deployment, apply the migration chain in order, run the
+verification SQL, configure server-only worker/export/search env vars, then run
+authenticated capture, worker, search, and export smoke tests against the real
+project.

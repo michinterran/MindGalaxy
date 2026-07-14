@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import {
+  InvalidJsonRequestError,
+  invalidJsonResponse,
+  parseJsonRequest,
+  validationErrorResponse,
+} from "@/lib/api/route-errors";
+import {
   captureListQuerySchema,
   createCaptureInputSchema,
 } from "@/lib/captures/schema";
 import { createCaptureWithProcessingJob } from "@/lib/captures/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-function validationError(error: ZodError) {
-  return NextResponse.json(
-    {
-      error: "VALIDATION_ERROR",
-      details: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    },
-    { status: 400 },
-  );
-}
 
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -40,17 +33,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const input = createCaptureInputSchema.parse(await request.json());
-    const result = await createCaptureWithProcessingJob(
-      supabase,
-      input,
-      user.id,
-    );
+    const input = createCaptureInputSchema.parse(await parseJsonRequest(request));
+    const result = await createCaptureWithProcessingJob(supabase, input);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof InvalidJsonRequestError) {
+      return invalidJsonResponse();
+    }
+
     if (error instanceof ZodError) {
-      return validationError(error);
+      return validationErrorResponse(error);
     }
 
     return NextResponse.json(
@@ -85,7 +78,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!parsed.success) {
-    return validationError(parsed.error);
+    return validationErrorResponse(parsed.error);
   }
 
   const { workspaceId, limit } = parsed.data;

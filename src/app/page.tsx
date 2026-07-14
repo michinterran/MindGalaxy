@@ -1,46 +1,47 @@
 import { Mail, Network, ShieldCheck } from "lucide-react";
 import { signInWithEmail, signInWithGoogle, signOut } from "@/app/auth/actions";
 import { KnowledgeWorkspace } from "@/components/knowledge-workspace";
+import { loadWorkspaceGraph } from "@/features/knowledge-map/server/load-workspace-graph";
+import { t, type Locale } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureDefaultWorkspace } from "@/lib/workspaces/bootstrap";
 
-function AuthScreen({ configured }: { configured: boolean }) {
+function AuthScreen({
+  configured,
+  locale,
+}: {
+  configured: boolean;
+  locale: Locale;
+}) {
   return (
     <main className="auth-screen">
       <section className="auth-shell">
         <div className="auth-copy">
           <div className="auth-badge">
             <ShieldCheck className="size-4" />
-            Supabase Auth Ready
+            {t(locale, "auth.badge")}
           </div>
-          <h1>
-            복사한 지식이 바로 정리되는 개인 지식지도
-          </h1>
-          <p>
-            Google 또는 이메일로 로그인하면 개인 workspace가 자동으로 생성됩니다.
-            이후 붙여넣은 원문은 안전하게 저장되고, AI 구조화 작업은 job으로
-            예약됩니다.
-          </p>
+          <h1>{t(locale, "auth.title")}</h1>
+          <p>{t(locale, "auth.description")}</p>
           <div className="auth-preview" aria-hidden="true">
             <Network className="size-5" />
-            <span>Mind Map</span>
+            <span>{t(locale, "auth.preview.mindMap")}</span>
             <i />
-            <span>Galaxy</span>
+            <span>{t(locale, "auth.preview.galaxy")}</span>
             <i />
-            <span>Export</span>
+            <span>{t(locale, "auth.preview.export")}</span>
           </div>
         </div>
 
         <section className="auth-card">
-          <p className="ui-kicker">Sign in</p>
-          <h2>MindGalaxy 시작</h2>
-          <p>
-            Google SSO가 가장 빠릅니다. 이메일은 magic link 방식으로 동작합니다.
-          </p>
+          <p className="ui-kicker">{t(locale, "auth.signIn.kicker")}</p>
+          <h2>{t(locale, "auth.signIn.title")}</h2>
+          <p>{t(locale, "auth.signIn.description")}</p>
 
           {!configured ? (
             <div className="auth-warning">
-              Supabase 환경변수가 아직 설정되지 않았습니다.
+              {t(locale, "auth.notConfigured")}
             </div>
           ) : null}
 
@@ -51,23 +52,23 @@ function AuthScreen({ configured }: { configured: boolean }) {
               type="submit"
             >
               <span>G</span>
-              Google로 계속하기
+              {t(locale, "auth.googleCta")}
             </button>
           </form>
 
           <div className="auth-divider">
             <i />
-            또는
+            {t(locale, "auth.divider")}
             <i />
           </div>
 
           <form action={signInWithEmail} className="auth-email-form">
             <label className="field-label" htmlFor="email">
-              이메일
+              {t(locale, "auth.emailLabel")}
               <input
                 id="email"
                 name="email"
-                placeholder="you@example.com"
+                placeholder={t(locale, "auth.emailPlaceholder")}
                 required
                 type="email"
               />
@@ -78,7 +79,7 @@ function AuthScreen({ configured }: { configured: boolean }) {
               type="submit"
             >
               <Mail className="size-4" />
-              이메일 링크 받기
+              {t(locale, "auth.emailCta")}
             </button>
           </form>
         </section>
@@ -87,19 +88,16 @@ function AuthScreen({ configured }: { configured: boolean }) {
   );
 }
 
-function WorkspaceErrorScreen() {
+function WorkspaceErrorScreen({ locale }: { locale: Locale }) {
   return (
     <main className="center-screen">
       <section className="system-card">
-        <p className="ui-kicker">Workspace Error</p>
-        <h1>workspace 생성에 실패했습니다.</h1>
-        <p>
-          Supabase RLS 또는 테이블 정책을 다시 확인해야 합니다. 로그아웃 후 다시
-          시도할 수 있습니다.
-        </p>
+        <p className="ui-kicker">{t(locale, "auth.workspaceError.kicker")}</p>
+        <h1>{t(locale, "auth.workspaceError.title")}</h1>
+        <p>{t(locale, "auth.workspaceError.description")}</p>
         <form action={signOut}>
           <button className="primary-button" type="submit">
-            로그아웃
+            {t(locale, "auth.signOut")}
           </button>
         </form>
       </section>
@@ -108,10 +106,11 @@ function WorkspaceErrorScreen() {
 }
 
 export default async function Home() {
+  const locale = await getRequestLocale();
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return <AuthScreen configured={false} />;
+    return <AuthScreen configured={false} locale={locale} />;
   }
 
   const {
@@ -119,7 +118,7 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <AuthScreen configured />;
+    return <AuthScreen configured locale={locale} />;
   }
 
   let workspace: Awaited<ReturnType<typeof ensureDefaultWorkspace>>;
@@ -127,7 +126,7 @@ export default async function Home() {
   try {
     workspace = await ensureDefaultWorkspace(supabase, user);
   } catch {
-    return <WorkspaceErrorScreen />;
+    return <WorkspaceErrorScreen locale={locale} />;
   }
 
   const { count } = await supabase
@@ -141,6 +140,23 @@ export default async function Home() {
     .eq("workspace_id", workspace.id)
     .order("created_at", { ascending: false })
     .limit(6);
+  const captureIds = (captures ?? []).map((capture) => capture.id);
+  const { data: jobs } = captureIds.length
+    ? await supabase
+        .from("processing_jobs")
+        .select("capture_id, status, created_at")
+        .eq("workspace_id", workspace.id)
+        .in("capture_id", captureIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const latestJobStatusByCaptureId = new Map<string, string>();
+
+  for (const job of jobs ?? []) {
+    if (!latestJobStatusByCaptureId.has(job.capture_id)) {
+      latestJobStatusByCaptureId.set(job.capture_id, job.status);
+    }
+  }
+  const graph = await loadWorkspaceGraph(supabase, workspace.id, locale);
 
   return (
     <KnowledgeWorkspace
@@ -151,7 +167,10 @@ export default async function Home() {
         rawTextLength: capture.raw_text.length,
         sourceKind: capture.source_kind,
         createdAt: capture.created_at,
+        processingStatus: latestJobStatusByCaptureId.get(capture.id) ?? null,
       }))}
+      locale={locale}
+      graph={graph}
       userEmail={user.email}
       workspace={workspace}
     />

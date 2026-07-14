@@ -1,21 +1,14 @@
+import type {
+  CAPTURE_SOURCE_KIND_VALUES,
+  PROCESSING_STATUS_VALUES,
+} from "@/config/domain";
+
 export type ID = string;
 export type ISODateTime = string;
 
-export type CaptureSourceKind =
-  | "paste"
-  | "chatgpt"
-  | "claude"
-  | "gemini"
-  | "web"
-  | "file"
-  | "manual";
+export type CaptureSourceKind = (typeof CAPTURE_SOURCE_KIND_VALUES)[number];
 
-export type ProcessingStatus =
-  | "queued"
-  | "running"
-  | "needs_review"
-  | "completed"
-  | "failed";
+export type ProcessingStatus = (typeof PROCESSING_STATUS_VALUES)[number];
 
 export type NodeKind =
   | "idea"
@@ -68,6 +61,7 @@ export type Capture = {
   id: ID;
   workspaceId: ID;
   projectId?: ID;
+  clientRequestId: ID;
   title?: string;
   rawText: string;
   sourceKind: CaptureSourceKind;

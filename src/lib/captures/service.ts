@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CreateCaptureInput } from "@/lib/captures/schema";
+import type { CreateCaptureCommand } from "@/lib/captures/schema";
 import type { Database, Json } from "@/types/database";
 
 type CreateCaptureResult = {
@@ -21,66 +21,39 @@ type CreateCaptureResult = {
 
 export async function createCaptureWithProcessingJob(
   supabase: SupabaseClient<Database>,
-  input: CreateCaptureInput,
-  userId: string,
+  input: CreateCaptureCommand,
 ): Promise<CreateCaptureResult> {
-  const { data: capture, error: captureError } = await supabase
-    .from("captures")
-    .insert({
-      workspace_id: input.workspaceId,
-      project_id: input.projectId ?? null,
-      title: input.title ?? null,
-      raw_text: input.rawText,
-      source_kind: input.sourceKind,
-      created_by: userId,
-      metadata: input.metadata as Json,
+  const { data, error } = await supabase
+    .rpc("create_capture_command", {
+      p_workspace_id: input.workspaceId,
+      p_request_id: input.requestId,
+      p_raw_text: input.rawText,
+      p_project_id: input.projectId ?? null,
+      p_title: input.title ?? null,
+      p_source_kind: input.sourceKind,
+      p_source: (input.source ?? null) as Json | null,
+      p_metadata: input.metadata as Json,
     })
-    .select("id, workspace_id, project_id, title, source_kind, created_at")
     .single();
 
-  if (captureError || !capture) {
+  if (error || !data) {
     throw new Error("CAPTURE_CREATE_FAILED");
   }
 
-  if (input.source) {
-    const { error: sourceError } = await supabase.from("capture_sources").insert({
-      workspace_id: input.workspaceId,
-      capture_id: capture.id,
-      label: input.source.label,
-      url: input.source.url ?? null,
-      provider: input.source.provider ?? null,
-      author: input.source.author ?? null,
-      captured_at: input.source.capturedAt ?? null,
-      metadata: input.source.metadata as Json,
-    });
-
-    if (sourceError) {
-      throw new Error("CAPTURE_SOURCE_CREATE_FAILED");
-    }
-  }
-
-  const { data: processingJob, error: jobError } = await supabase
-    .from("processing_jobs")
-    .insert({
-      workspace_id: input.workspaceId,
-      capture_id: capture.id,
-      status: "queued",
-      job_type: "capture_structure",
-      prompt_version: "mindgalaxy-capture-v0",
-      retry_count: 0,
-      metadata: {
-        sourceKind: input.sourceKind,
-      },
-    })
-    .select("id, status, job_type, created_at")
-    .single();
-
-  if (jobError || !processingJob) {
-    throw new Error("PROCESSING_JOB_CREATE_FAILED");
-  }
-
   return {
-    capture,
-    processingJob,
+    capture: {
+      id: data.capture_id,
+      workspace_id: data.workspace_id,
+      project_id: data.project_id,
+      title: data.title,
+      source_kind: data.source_kind,
+      created_at: data.capture_created_at,
+    },
+    processingJob: {
+      id: data.processing_job_id,
+      status: data.processing_job_status,
+      job_type: data.processing_job_type,
+      created_at: data.processing_job_created_at,
+    },
   };
 }

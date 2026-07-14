@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
+import { LIST_QUERY_LIMITS, PROCESSING_STATUS_VALUES } from "@/config/domain";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const processingJobListQuerySchema = z.object({
   workspaceId: z.uuid(),
-  status: z
-    .enum(["queued", "running", "needs_review", "completed", "failed"])
-    .optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  status: z.enum(PROCESSING_STATUS_VALUES).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIST_QUERY_LIMITS.maxLimit)
+    .default(LIST_QUERY_LIMITS.defaultLimit),
 });
 
 function validationError(error: ZodError) {

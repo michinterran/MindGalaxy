@@ -1,17 +1,18 @@
 import Link from "next/link";
+import { t } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n/server";
 
-export default function AuthCodeErrorPage() {
+export default async function AuthCodeErrorPage() {
+  const locale = await getRequestLocale();
+
   return (
     <main className="center-screen">
       <section className="system-card">
-        <p className="ui-kicker">Auth Error</p>
-        <h1>로그인 연결을 완료하지 못했습니다.</h1>
-        <p>
-          Google 또는 이메일 링크가 만료되었거나, OAuth callback 처리 중 문제가
-          발생했습니다. 다시 로그인해 주세요.
-        </p>
+        <p className="ui-kicker">{t(locale, "auth.codeError.kicker")}</p>
+        <h1>{t(locale, "auth.codeError.title")}</h1>
+        <p>{t(locale, "auth.codeError.description")}</p>
         <Link className="primary-button" href="/">
-          로그인으로 돌아가기
+          {t(locale, "auth.codeError.back")}
         </Link>
       </section>
     </main>
