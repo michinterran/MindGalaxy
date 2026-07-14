@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 type CapturePanelProps = {
   workspaceId: string;
+  variant?: "panel" | "hero";
 };
 
 type CaptureState =
@@ -13,12 +15,13 @@ type CaptureState =
   | { kind: "success"; message: string }
   | { kind: "error"; message: string };
 
-export function CapturePanel({ workspaceId }: CapturePanelProps) {
+export function CapturePanel({ workspaceId, variant = "panel" }: CapturePanelProps) {
+  const router = useRouter();
   const [rawText, setRawText] = useState("");
   const [title, setTitle] = useState("");
   const [state, setState] = useState<CaptureState>({
     kind: "idle",
-    message: "원문은 먼저 저장되고, AI 분석 job은 queued 상태로 예약됩니다.",
+    message: "원문은 안전하게 먼저 저장되고, AI 정리 작업은 바로 대기열에 올라갑니다.",
   });
   const [isPending, startTransition] = useTransition();
 
@@ -68,8 +71,9 @@ export function CapturePanel({ workspaceId }: CapturePanelProps) {
         setRawText("");
         setState({
           kind: "success",
-          message: "저장 완료. processing_jobs에 AI 구조화 작업이 예약됐습니다.",
+          message: "저장 완료. 이제 이 자료를 마인드맵으로 정리할 준비가 됐습니다.",
         });
+        router.refresh();
       } catch (error) {
         setState({
           kind: "error",
@@ -83,16 +87,28 @@ export function CapturePanel({ workspaceId }: CapturePanelProps) {
   }
 
   return (
-    <section className="rounded-[2rem] border border-line bg-panel/86 p-4 shadow-2xl shadow-black/40">
+    <section
+      className={
+        variant === "hero"
+          ? "rounded-[2.5rem] border border-source/25 bg-[linear-gradient(145deg,rgba(125,211,252,0.12),rgba(9,9,11,0.92)_34%,rgba(214,255,107,0.08))] p-5 shadow-2xl shadow-source/10"
+          : "rounded-[2rem] border border-line bg-panel/86 p-4 shadow-2xl shadow-black/40"
+      }
+    >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-source">
-            Quick Capture
+            {variant === "hero" ? "First Capture" : "Quick Capture"}
           </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-[-0.06em]">
-            붙여넣으면
-            <br />
-            먼저 원문 저장
+          <h2
+            className={
+              variant === "hero"
+                ? "mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.07em] text-zinc-50 md:text-4xl"
+                : "mt-1 text-2xl font-semibold tracking-[-0.06em]"
+            }
+          >
+            ChatGPT 답변을 붙여넣으면
+            <br className={variant === "hero" ? "hidden sm:block" : ""} />
+            AI가 마인드맵으로 정리합니다
           </h2>
         </div>
         <Sparkles className="size-5 text-signal" />
@@ -105,7 +121,7 @@ export function CapturePanel({ workspaceId }: CapturePanelProps) {
         className="mb-3 w-full rounded-2xl border border-white/10 bg-black/45 px-3 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-source/60"
         id="capture-title"
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="비워두면 AI가 제목을 만들 예정"
+        placeholder="비워두면 나중에 AI가 제목을 제안합니다"
         type="text"
         value={title}
       />
@@ -114,10 +130,12 @@ export function CapturePanel({ workspaceId }: CapturePanelProps) {
         원문
       </label>
       <textarea
-        className="min-h-40 w-full resize-none rounded-3xl border border-white/10 bg-black/45 p-4 text-sm leading-6 text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-source/60"
+        className={`w-full resize-none rounded-3xl border border-white/10 bg-black/45 p-4 text-sm leading-6 text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-source/60 ${
+          variant === "hero" ? "min-h-56" : "min-h-40"
+        }`}
         id="capture-raw-text"
         onChange={(event) => setRawText(event.target.value)}
-        placeholder="ChatGPT / Claude / Gemini / 웹문서 내용을 그대로 붙여넣기..."
+        placeholder="ChatGPT / Claude / Gemini 답변, 회의 메모, 웹문서 내용을 그대로 붙여넣기..."
         value={rawText}
       />
 
@@ -139,7 +157,7 @@ export function CapturePanel({ workspaceId }: CapturePanelProps) {
         onClick={submitCapture}
         type="button"
       >
-        {isPending ? "저장 중..." : "캡처 저장 후 AI 분석 예약"}
+        {isPending ? "저장 중..." : "붙여넣은 내용 정리하기"}
         <ArrowRight className="size-4" />
       </button>
     </section>

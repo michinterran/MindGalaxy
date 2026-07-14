@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "reactflow/dist/style.css";
 
 :root {
   --background: #030305;
@@ -40,4 +41,22 @@ body {
 ::selection {
   background: rgba(214, 255, 107, 0.28);
   color: #ffffff;
+}
+
+.react-flow {
+  --xy-edge-stroke-default: rgba(125, 211, 252, 0.4);
+  --xy-edge-stroke-width-default: 1.4;
+  --xy-node-border-default: transparent;
+  --xy-node-background-color-default: transparent;
+  --xy-controls-button-background-color-default: rgba(3, 3, 5, 0.78);
+  --xy-controls-button-color-default: #f4f4f5;
+  --xy-controls-button-border-color-default: rgba(255, 255, 255, 0.12);
+}
+
+.react-flow__edge-textbg {
+  fill: rgba(3, 3, 5, 0.72);
+}
+
+.react-flow__attribution {
+  display: none;
 }
