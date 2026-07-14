@@ -21,6 +21,7 @@ export async function ensureDefaultWorkspace(
     .maybeSingle();
 
   if (existingError) {
+    console.error("[workspace] lookup failed", existingError);
     throw new Error("WORKSPACE_LOOKUP_FAILED");
   }
 
@@ -42,6 +43,7 @@ export async function ensureDefaultWorkspace(
     .single();
 
   if (workspaceError || !workspace) {
+    console.error("[workspace] create failed", workspaceError);
     throw new Error("WORKSPACE_CREATE_FAILED");
   }
 
@@ -54,6 +56,7 @@ export async function ensureDefaultWorkspace(
     });
 
   if (membershipError) {
+    console.error("[workspace] membership create failed", membershipError);
     throw new Error("WORKSPACE_MEMBERSHIP_CREATE_FAILED");
   }
 
