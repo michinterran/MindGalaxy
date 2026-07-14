@@ -470,6 +470,32 @@ export type Database = {
           next_run_at: string;
         }[];
       };
+      delete_capture_lifecycle: {
+        Args: {
+          p_capture_id: string;
+          p_workspace_id: string;
+          p_actor_user_id: string;
+        };
+        Returns: {
+          deleted_capture_id: string;
+          deleted_node_count: number;
+          deleted_edge_count: number;
+        }[];
+      };
+      retry_processing_job_lifecycle: {
+        Args: {
+          p_job_id: string;
+          p_workspace_id: string;
+          p_actor_user_id: string;
+        };
+        Returns: {
+          job_id: string;
+          status: ProcessingStatus;
+          retry_count: number;
+          max_attempts: number;
+          next_run_at: string;
+        }[];
+      };
       search_workspace_knowledge: {
         Args: {
           p_workspace_id: string;

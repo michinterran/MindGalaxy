@@ -9,6 +9,7 @@ import type {
 } from "@/features/knowledge-map/model/graph";
 import type { Database, Json } from "@/types/database";
 import type { EdgeKind, NodeKind } from "@/types/domain";
+import { readNodePosition } from "@/features/graph-mutations/model/position";
 import { nodeKindLabel } from "@/lib/i18n/labels";
 import type { Locale } from "@/lib/i18n";
 
@@ -73,6 +74,7 @@ export async function loadWorkspaceGraph(
     confidenceLabel:
       typeof node.confidence === "number" ? `${Math.round(node.confidence * 100)}%` : undefined,
     evidenceSnippet: node.evidence_snippet ?? evidenceSnippet(node.metadata),
+    savedPosition: readNodePosition(node.metadata),
   }));
 
   const validNodeIds = new Set(graphNodes.map((node) => node.id));

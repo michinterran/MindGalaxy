@@ -28,7 +28,6 @@ export function MindMapNode({
       <div className="mind-node__body">
         <div className="mind-node__topline">
           <span>{data.eyebrow}</span>
-          <span>{data.confidenceLabel ?? `${data.degree}`}</span>
         </div>
         <h3>{data.title}</h3>
         <p>{data.summary}</p>

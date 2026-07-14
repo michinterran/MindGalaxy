@@ -115,6 +115,20 @@ describe("projectGraphSnapshot", () => {
     expect(new Set(positions).size).toBe(positions.length);
   });
 
+  it("prefers a persisted workspace position over the generated layout", () => {
+    const savedPosition = { x: 912, y: 384 };
+    const projection = projectGraphSnapshot({
+      ...snapshot,
+      nodes: snapshot.nodes.map((node) =>
+        node.id === "idea" ? { ...node, savedPosition } : node,
+      ),
+    });
+
+    expect(projection.nodes.find((node) => node.id === "idea")?.position).toEqual(
+      savedPosition,
+    );
+  });
+
   it("finds shortest selected path and returns empty for disconnected targets", () => {
     const projection = projectGraphSnapshot(snapshot);
 

@@ -1,0 +1,445 @@
+"use client";
+
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Check,
+  CircleDot,
+  Link2,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import type {
+  GraphEdge,
+  GraphProjection,
+  GraphTone,
+} from "@/features/knowledge-map/model/graph";
+import { GRAPH_TONE_COLORS } from "@/features/knowledge-map/model/graph";
+import {
+  scheduleUndoableDelete,
+  type UndoableDelete,
+} from "@/features/graph-mutations/model/undoable-delete";
+import { GRAPH_INTERACTION_REGISTRY } from "@/config/registry";
+import { t, type Locale } from "@/lib/i18n";
+
+type InspectorTab = "overview" | "evidence" | "connections";
+type MutationStatus = "idle" | "saving" | "success" | "error";
+
+const INSPECTOR_TABS = ["overview", "evidence", "connections"] as const;
+
+export type NodeInspectorActions = {
+  createEdge: (input: {
+    sourceNodeId: string;
+    targetNodeId: string;
+    label?: string;
+  }) => Promise<void>;
+  deleteEdge: (edgeId: string) => Promise<void>;
+  deleteNode: (nodeId: string) => Promise<void>;
+  updateNode: (
+    nodeId: string,
+    input: { title?: string; summary?: string | null },
+  ) => Promise<void>;
+};
+
+function toneClass(tone: GraphTone) {
+  return `mind-node--${tone}`;
+}
+
+function linkedNodeId(edge: GraphEdge, nodeId: string) {
+  return edge.sourceNodeId === nodeId ? edge.targetNodeId : edge.sourceNodeId;
+}
+
+export function NodeInspector({
+  actions,
+  graph,
+  locale,
+  onClose,
+  selectedId,
+}: {
+  actions: NodeInspectorActions;
+  graph: GraphProjection;
+  locale: Locale;
+  onClose: () => void;
+  selectedId: string;
+}) {
+  const node = graph.nodes.find((candidate) => candidate.id === selectedId) ?? null;
+  const [tab, setTab] = useState<InspectorTab>("overview");
+  const [title, setTitle] = useState(node?.title ?? "");
+  const [summary, setSummary] = useState(node?.summary ?? "");
+  const [status, setStatus] = useState<MutationStatus>("idle");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isPendingDeletion, setIsPendingDeletion] = useState(false);
+  const [targetNodeId, setTargetNodeId] = useState("");
+  const [edgeLabel, setEdgeLabel] = useState("");
+  const pendingDeleteRef = useRef<UndoableDelete | null>(null);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const tabIdPrefix = useId();
+
+  const linkedItems = useMemo(() => {
+    if (!node) return [];
+
+    return graph.edges
+      .filter(
+        (edge) =>
+          edge.sourceNodeId === node.id || edge.targetNodeId === node.id,
+      )
+      .map((edge) => ({
+        edge,
+        node: graph.nodes.find(
+          (candidate) => candidate.id === linkedNodeId(edge, node.id),
+        ),
+      }))
+      .filter(
+        (item): item is { edge: GraphEdge; node: NonNullable<typeof item.node> } =>
+          Boolean(item.node),
+      );
+  }, [graph.edges, graph.nodes, node]);
+
+  const connectionCandidates = graph.nodes.filter(
+    (candidate) =>
+      candidate.id !== selectedId &&
+      !linkedItems.some((item) => item.node.id === candidate.id),
+  );
+
+  useEffect(
+    () => () => {
+      pendingDeleteRef.current?.cancel();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (showDeleteConfirm && !deleteDialogRef.current?.open) {
+      deleteDialogRef.current?.showModal();
+    }
+  }, [showDeleteConfirm]);
+
+  if (!node) return null;
+
+  async function saveNode() {
+    if (!title.trim()) return;
+
+    setStatus("saving");
+    try {
+      await actions.updateNode(selectedId, {
+        title: title.trim(),
+        summary: summary.trim() || null,
+      });
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  function scheduleDelete() {
+    setShowDeleteConfirm(false);
+    setIsPendingDeletion(true);
+    setStatus("idle");
+    pendingDeleteRef.current = scheduleUndoableDelete(
+      async () => {
+        setIsPendingDeletion(false);
+        setStatus("saving");
+        try {
+          await actions.deleteNode(selectedId);
+          pendingDeleteRef.current = null;
+          onClose();
+        } catch {
+          pendingDeleteRef.current = null;
+          setIsPendingDeletion(false);
+          setStatus("error");
+        }
+      },
+      GRAPH_INTERACTION_REGISTRY.deleteUndoDelayMs,
+    );
+  }
+
+  function undoDelete() {
+    const cancelled = pendingDeleteRef.current?.cancel() ?? false;
+    if (!cancelled) return;
+    pendingDeleteRef.current = null;
+    setIsPendingDeletion(false);
+  }
+
+  async function addConnection() {
+    if (!targetNodeId) return;
+    setStatus("saving");
+    try {
+      await actions.createEdge({
+        sourceNodeId: selectedId,
+        targetNodeId,
+        label: edgeLabel.trim() || undefined,
+      });
+      setTargetNodeId("");
+      setEdgeLabel("");
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  async function removeConnection(edgeId: string) {
+    setStatus("saving");
+    try {
+      await actions.deleteEdge(edgeId);
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  function handleTabKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: InspectorTab,
+  ) {
+    const currentIndex = INSPECTOR_TABS.indexOf(currentTab);
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % INSPECTOR_TABS.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex =
+        (currentIndex - 1 + INSPECTOR_TABS.length) % INSPECTOR_TABS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = INSPECTOR_TABS.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = INSPECTOR_TABS[nextIndex];
+    setTab(nextTab);
+    document.getElementById(`${tabIdPrefix}-tab-${nextTab}`)?.focus();
+  }
+
+  return (
+    <aside
+      aria-busy={status === "saving"}
+      aria-label={t(locale, "workspace.inspector.selected")}
+      className="node-inspector inspector-panel"
+    >
+      <header className="node-inspector__header">
+        <div>
+          <p>{t(locale, "workspace.inspector.selected")}</p>
+          <h2>{node.title}</h2>
+        </div>
+        <button
+          aria-label={t(locale, "workspace.inspector.close")}
+          className="icon-button"
+          disabled={status === "saving"}
+          onClick={onClose}
+          type="button"
+        >
+          <X className="size-4" />
+        </button>
+      </header>
+
+      <div className="node-inspector__tabs" role="tablist">
+        {INSPECTOR_TABS.map((item) => (
+          <button
+            aria-controls={`${tabIdPrefix}-panel-${item}`}
+            aria-selected={tab === item}
+            className={tab === item ? "is-active" : ""}
+            id={`${tabIdPrefix}-tab-${item}`}
+            key={item}
+            onKeyDown={(event) => handleTabKeyDown(event, item)}
+            onClick={() => setTab(item)}
+            role="tab"
+            tabIndex={tab === item ? 0 : -1}
+            type="button"
+          >
+            {t(locale, `workspace.inspector.tab.${item}`)}
+          </button>
+        ))}
+      </div>
+
+      <div className="node-inspector__body">
+        <section
+            aria-labelledby={`${tabIdPrefix}-tab-overview`}
+            className="node-editor"
+            hidden={tab !== "overview"}
+            id={`${tabIdPrefix}-panel-overview`}
+            role="tabpanel"
+            tabIndex={0}
+          >
+            <div className={`node-type-badge ${toneClass(node.tone)}`}>
+              <CircleDot className="size-4" />
+              {t(locale, `graph.tone.${node.tone}`)}
+            </div>
+            <label className="field-label">
+              {t(locale, "workspace.inspector.titleLabel")}
+              <input
+                disabled={isPendingDeletion || status === "saving"}
+                onChange={(event) => setTitle(event.target.value)}
+                value={title}
+              />
+            </label>
+            <label className="field-label">
+              {t(locale, "workspace.inspector.summaryLabel")}
+              <textarea
+                disabled={isPendingDeletion || status === "saving"}
+                onChange={(event) => setSummary(event.target.value)}
+                value={summary}
+              />
+            </label>
+            <div className="node-editor__actions">
+              <button
+                className="secondary-button"
+                disabled={isPendingDeletion || status === "saving" || !title.trim()}
+                onClick={saveNode}
+                type="button"
+              >
+                <Save className="size-4" />
+                {t(locale, "workspace.inspector.save")}
+              </button>
+              <button
+                className="danger-button"
+                disabled={isPendingDeletion || status === "saving"}
+                onClick={() => setShowDeleteConfirm(true)}
+                type="button"
+              >
+                <Trash2 className="size-4" />
+                {t(locale, "workspace.inspector.delete")}
+              </button>
+            </div>
+        </section>
+
+        <section
+            aria-labelledby={`${tabIdPrefix}-tab-evidence`}
+            className="node-evidence"
+            hidden={tab !== "evidence"}
+            id={`${tabIdPrefix}-panel-evidence`}
+            role="tabpanel"
+            tabIndex={0}
+          >
+            <p className="ui-kicker">{t(locale, "workspace.inspector.evidence")}</p>
+            <h3>{t(locale, "workspace.inspector.evidenceTitle")}</h3>
+            <blockquote>
+              {node.evidenceSnippet ?? t(locale, "workspace.inspector.noEvidence")}
+            </blockquote>
+        </section>
+
+        <section
+            aria-labelledby={`${tabIdPrefix}-tab-connections`}
+            className="node-connections"
+            hidden={tab !== "connections"}
+            id={`${tabIdPrefix}-panel-connections`}
+            role="tabpanel"
+            tabIndex={0}
+          >
+            <div className="connection-list">
+              {linkedItems.map((item) => (
+                <div key={item.edge.id}>
+                  <span
+                    style={{
+                      backgroundColor:
+                        GRAPH_TONE_COLORS[item.edge.tone ?? item.node.tone],
+                    }}
+                  />
+                  <p>
+                    <strong>{item.edge.label ?? t(locale, "graph.edge.related")}</strong>
+                    {item.node.title}
+                  </p>
+                  <button
+                    aria-label={t(locale, "workspace.inspector.removeConnection", {
+                      title: item.node.title,
+                    })}
+                    className="icon-button icon-button--compact"
+                    disabled={isPendingDeletion || status === "saving"}
+                    onClick={() => removeConnection(item.edge.id)}
+                    type="button"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="connection-composer">
+              <div className="connection-composer__title">
+                <Link2 className="size-4" />
+                <h3>{t(locale, "workspace.inspector.addConnection")}</h3>
+              </div>
+              <select
+                aria-label={t(locale, "workspace.inspector.connectionTarget")}
+                disabled={isPendingDeletion || status === "saving"}
+                onChange={(event) => setTargetNodeId(event.target.value)}
+                value={targetNodeId}
+              >
+                <option value="">{t(locale, "workspace.inspector.connectionTarget")}</option>
+                {connectionCandidates.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.title}
+                  </option>
+                ))}
+              </select>
+              <input
+                aria-label={t(locale, "workspace.inspector.connectionLabel")}
+                disabled={isPendingDeletion || status === "saving"}
+                onChange={(event) => setEdgeLabel(event.target.value)}
+                placeholder={t(locale, "workspace.inspector.connectionLabel")}
+                value={edgeLabel}
+              />
+              <button
+                className="secondary-button"
+                disabled={isPendingDeletion || !targetNodeId || status === "saving"}
+                onClick={addConnection}
+                type="button"
+              >
+                <Plus className="size-4" />
+                {t(locale, "workspace.inspector.add")}
+              </button>
+            </div>
+        </section>
+      </div>
+
+      <div aria-live="polite" className={`mutation-status mutation-status--${status}`} role="status">
+        {status === "success" ? <Check className="size-4" /> : null}
+        {status !== "idle" ? t(locale, `workspace.mutation.${status}`) : null}
+      </div>
+
+      {isPendingDeletion ? (
+        <div aria-live="assertive" className="undo-toast" role="status">
+          <span>{t(locale, "workspace.inspector.deleteScheduled")}</span>
+          <button onClick={undoDelete} type="button">
+            <RotateCcw className="size-4" />
+            {t(locale, "workspace.inspector.undo")}
+          </button>
+        </div>
+      ) : null}
+
+      {showDeleteConfirm ? (
+        <dialog
+          aria-labelledby="delete-node-title"
+          className="confirm-dialog"
+          onCancel={() => setShowDeleteConfirm(false)}
+          ref={deleteDialogRef}
+        >
+          <h3 id="delete-node-title">{t(locale, "workspace.inspector.deleteConfirmTitle")}</h3>
+          <p>{t(locale, "workspace.inspector.deleteConfirmDescription")}</p>
+          <div>
+            <button
+              autoFocus
+              className="secondary-button"
+              onClick={() => setShowDeleteConfirm(false)}
+              type="button"
+            >
+              {t(locale, "workspace.inspector.cancel")}
+            </button>
+            <button className="danger-button" onClick={scheduleDelete} type="button">
+              {t(locale, "workspace.inspector.delete")}
+            </button>
+          </div>
+        </dialog>
+      ) : null}
+    </aside>
+  );
+}

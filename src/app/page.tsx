@@ -1,6 +1,7 @@
 import { Mail, Network, ShieldCheck } from "lucide-react";
 import { signInWithEmail, signInWithGoogle, signOut } from "@/app/auth/actions";
 import { KnowledgeWorkspace } from "@/components/knowledge-workspace";
+import { LIST_QUERY_LIMITS } from "@/config/domain";
 import { loadWorkspaceGraph } from "@/features/knowledge-map/server/load-workspace-graph";
 import { t, type Locale } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -139,7 +140,7 @@ export default async function Home() {
     .select("id, title, raw_text, source_kind, created_at")
     .eq("workspace_id", workspace.id)
     .order("created_at", { ascending: false })
-    .limit(6);
+    .limit(LIST_QUERY_LIMITS.defaultLimit);
   const captureIds = (captures ?? []).map((capture) => capture.id);
   const { data: jobs } = captureIds.length
     ? await supabase

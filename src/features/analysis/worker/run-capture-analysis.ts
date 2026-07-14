@@ -95,7 +95,10 @@ function attachVerifiedEvidence(
   };
 }
 
-export async function runCaptureAnalysisBatch(limit: number) {
+export async function runCaptureAnalysisBatch(
+  limit: number,
+  options: { maxAttempts?: number } = {},
+) {
   const safeLimit = Math.min(Math.max(limit, 1), JOB_REGISTRY.captureStructuring.maxBatchSize);
   const supabase = getSupabaseServiceRoleClient();
   const openai = getOpenAIClient();
@@ -114,7 +117,11 @@ export async function runCaptureAnalysisBatch(limit: number) {
   };
 
   for (let index = 0; index < safeLimit; index += 1) {
-    const job = await claimAnalysisJob(supabase, workerId);
+    const job = await claimAnalysisJob(
+      supabase,
+      workerId,
+      options.maxAttempts,
+    );
 
     if (!job) break;
 

@@ -18,6 +18,7 @@ export type ClaimedAnalysisJob = {
 export async function claimAnalysisJob(
   supabase: SupabaseClient<Database>,
   workerId: string,
+  maxAttempts: number = JOB_REGISTRY.captureStructuring.maxManualAttempts,
 ): Promise<ClaimedAnalysisJob | null> {
   const registry = JOB_REGISTRY.captureStructuring;
   const { data, error } = await supabase
@@ -26,7 +27,7 @@ export async function claimAnalysisJob(
       p_lease_seconds: registry.leaseSeconds,
       p_model: registry.model.model,
       p_prompt_version: registry.prompt.version,
-      p_max_attempts: registry.maxAttempts,
+      p_max_attempts: maxAttempts,
     })
     .maybeSingle();
 

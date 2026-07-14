@@ -18,6 +18,7 @@ import {
   CaptureClientError,
   captureErrorMessage,
   createCapture,
+  type CreateCaptureResponse,
 } from "@/features/capture/api/capture-client";
 import { DEFAULT_LOCALE, formatInteger, t, type Locale } from "@/lib/i18n";
 
@@ -26,6 +27,8 @@ type CapturePanelProps = {
   autoFocus?: boolean;
   variant?: "panel" | "hero";
   locale?: Locale;
+  onCaptureCreated?: (result: CreateCaptureResponse) => void;
+  onViewLibrary?: () => void;
 };
 
 type CaptureState =
@@ -60,6 +63,8 @@ function detectSource(rawText: string, locale: Locale) {
 export function CapturePanel({
   autoFocus = false,
   locale = DEFAULT_LOCALE,
+  onCaptureCreated,
+  onViewLibrary,
   workspaceId,
   variant = "panel",
 }: CapturePanelProps) {
@@ -79,6 +84,14 @@ export function CapturePanel({
   const textLength = rawText.trim().length;
   const hasRawText = textLength > 0;
   const isHero = variant === "hero";
+
+  function focusForNextCapture() {
+    setState({
+      kind: "idle",
+      message: t(locale, "capture.status.idle"),
+    });
+    requestAnimationFrame(() => rawTextRef.current?.focus());
+  }
 
   useEffect(() => {
     if (autoFocus) {
@@ -121,7 +134,7 @@ export function CapturePanel({
 
     startTransition(async () => {
       try {
-        await createCapture({
+        const result = await createCapture({
           workspaceId,
           requestId,
           metadata: {},
@@ -143,7 +156,9 @@ export function CapturePanel({
           kind: "success",
           message: t(locale, "capture.status.success"),
         });
+        onCaptureCreated?.(result);
         router.refresh();
+        requestAnimationFrame(() => rawTextRef.current?.focus());
       } catch (error) {
         setState({
           kind: "error",
@@ -172,7 +187,7 @@ export function CapturePanel({
           <p className="capture-panel__description">
             {t(locale, "capture.description")}
           </p>
-          <div className="capture-panel__flow" aria-hidden="true">
+          {isHero ? <div className="capture-panel__flow" aria-hidden="true">
             <span>
               <em>1</em>
               <FileCheck2 className="size-4" />
@@ -188,7 +203,7 @@ export function CapturePanel({
               <Tags className="size-4" />
               {t(locale, "capture.flow.context")}
             </span>
-          </div>
+          </div> : null}
         </div>
         <div className="source-pill">
           <SourceIcon className="size-4" />
@@ -238,11 +253,28 @@ export function CapturePanel({
           </span>
         </div>
 
-        <div className={`status-line status-line--${state.kind}`}>
+        <div
+          aria-live="polite"
+          className={`status-line status-line--${state.kind}`}
+          role="status"
+        >
           {state.kind === "saving" ? <Loader2 className="size-4 animate-spin" /> : null}
           {state.kind === "success" ? <CheckCircle2 className="size-4" /> : null}
           <span>{state.message}</span>
         </div>
+
+        {state.kind === "success" ? (
+          <div className="capture-panel__success-actions">
+            <button className="ghost-button" onClick={focusForNextCapture} type="button">
+              {t(locale, "capture.success.next")}
+            </button>
+            {onViewLibrary ? (
+              <button className="ghost-button" onClick={onViewLibrary} type="button">
+                {t(locale, "capture.success.library")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <button
           className={`primary-button ${hasRawText ? "primary-button--ready" : "primary-button--empty"}`}

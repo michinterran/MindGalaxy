@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { runCaptureAnalysisBatch } from "@/features/analysis/worker/run-capture-analysis";
 import {
   InvalidJsonRequestError,
   invalidJsonResponse,
@@ -12,6 +13,9 @@ import {
 } from "@/lib/captures/schema";
 import { createCaptureWithProcessingJob } from "@/lib/captures/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -35,6 +39,14 @@ export async function POST(request: NextRequest) {
   try {
     const input = createCaptureInputSchema.parse(await parseJsonRequest(request));
     const result = await createCaptureWithProcessingJob(supabase, input);
+
+    after(async () => {
+      try {
+        await runCaptureAnalysisBatch(1);
+      } catch (error) {
+        console.error("[capture-analysis] background run failed", error);
+      }
+    });
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

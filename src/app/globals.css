@@ -1,13 +1,15 @@
 @import "tailwindcss";
 @import "reactflow/dist/style.css";
+@import "../styles/graph-management.css";
+@import "../styles/library-detail.css";
 
 :root {
-  --background: #050506;
+  --background: #050607;
   --foreground: #f4f4f5;
   --muted: #a1a1aa;
   --muted-2: #71717a;
-  --panel: #0b0b0d;
-  --panel-raised: #121216;
+  --panel: #0b0e10;
+  --panel-raised: #111519;
   --line: rgba(255, 255, 255, 0.1);
   --line-soft: rgba(255, 255, 255, 0.06);
   --signal: #d6ff6b;
@@ -481,15 +483,13 @@ textarea:focus-visible {
   position: sticky;
   top: 0;
   z-index: 20;
-  grid-template-columns: minmax(190px, 250px) auto minmax(340px, 0.92fr) minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(190px, 240px) auto minmax(320px, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   min-height: 64px;
   border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 12px;
-  background:
-    linear-gradient(90deg, rgba(125, 211, 252, 0.055), transparent 36%),
-    rgba(5, 5, 6, 0.78);
+  background: rgba(7, 9, 10, 0.86);
   padding: 10px;
   box-shadow:
     0 18px 42px rgba(0, 0, 0, 0.28),
@@ -555,10 +555,10 @@ textarea:focus-visible {
   align-items: center;
   gap: 4px;
   overflow: auto;
-  border: 1px solid var(--line-soft);
+  border: 0;
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 4px;
+  background: transparent;
+  padding: 0;
 }
 
 .toolbar-nav button {
@@ -581,7 +581,7 @@ textarea:focus-visible {
 
 .toolbar-nav button:hover,
 .toolbar-nav button.is-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.075);
   color: var(--foreground);
 }
 
@@ -696,8 +696,132 @@ textarea:focus-visible {
   padding-top: 12px;
 }
 
-.workspace-grid--capture-open {
-  grid-template-columns: minmax(330px, 380px) minmax(0, 1fr) minmax(300px, 340px);
+.workspace-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.knowledge-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.knowledge-local-toolbar {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(9, 12, 14, 0.78);
+  padding: 5px 6px;
+}
+
+.knowledge-view-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.knowledge-view-switch button,
+.knowledge-export-action {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.knowledge-view-switch button:hover,
+.knowledge-view-switch button.is-active,
+.knowledge-export-action:hover {
+  background: rgba(255, 255, 255, 0.075);
+  color: var(--foreground);
+}
+
+.knowledge-view-switch em {
+  border: 1px solid rgba(214, 255, 107, 0.22);
+  border-radius: 999px;
+  color: var(--signal);
+  padding: 2px 5px;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+.knowledge-stage > .canvas-stage,
+.knowledge-stage > .galaxy-stage {
+  min-height: calc(100vh - 158px);
+}
+
+.knowledge-stage > .list-stage {
+  min-height: calc(100vh - 104px);
+}
+
+.first-run-stage {
+  display: grid;
+  min-height: calc(100vh - 96px);
+  place-items: center;
+  gap: 28px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 32%, rgba(125, 211, 252, 0.08), transparent 30%),
+    radial-gradient(circle at 68% 64%, rgba(214, 255, 107, 0.045), transparent 28%),
+    rgba(7, 9, 10, 0.82);
+  padding: clamp(24px, 5vw, 64px);
+}
+
+.first-run-stage__intro {
+  max-width: 720px;
+  text-align: center;
+}
+
+.first-run-stage__intro h2 {
+  max-width: 640px;
+  margin: 8px auto 0;
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+.first-run-stage__intro > p:not(.ui-kicker) {
+  max-width: 620px;
+  margin: 18px auto 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.first-run-stage__trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.first-run-stage__trust span {
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 7px 11px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.first-run-stage .capture-panel--hero {
+  width: min(980px, 100%);
 }
 
 .workspace-stack {
@@ -942,6 +1066,19 @@ textarea:focus-visible {
   color: var(--danger);
 }
 
+.capture-panel__success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.capture-panel__success-actions .ghost-button {
+  min-height: 34px;
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0 10px;
+}
+
 .primary-button {
   width: 100%;
   background: var(--signal);
@@ -1095,6 +1232,10 @@ textarea:focus-visible {
   width: 224px;
   min-height: 78px;
   opacity: 0.88;
+}
+
+.mind-node--minor .mind-node__body > p {
+  display: none;
 }
 
 .mind-node:hover {
@@ -1370,29 +1511,65 @@ textarea:focus-visible {
   background: rgba(7, 9, 10, 0.86);
 }
 
+.capture-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.capture-layer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: default;
+  pointer-events: auto;
+  backdrop-filter: blur(1px);
+}
+
 .capture-drawer {
+  position: absolute;
+  top: 86px;
+  bottom: 14px;
+  left: 14px;
   display: flex;
+  width: min(440px, calc(100vw - 28px));
   min-width: 0;
-  max-height: calc(100vh - 96px);
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   overflow: auto;
   border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  background: rgba(7, 9, 10, 0.9);
-  padding: 14px;
+  border-radius: 12px;
+  background: rgba(8, 11, 13, 0.97);
+  padding: 12px;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.58);
+  pointer-events: auto;
 }
 
 .capture-drawer__header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
+  padding: 2px 2px 4px 6px;
 }
 
 .capture-drawer__header h2 {
   margin: 0;
   font-size: 18px;
+}
+
+.capture-drawer .capture-panel {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  padding: 8px 6px 14px;
+  box-shadow: none;
+}
+
+.capture-drawer .capture-panel::before {
+  display: none;
 }
 
 .search-panel__header {
@@ -1805,12 +1982,7 @@ textarea:focus-visible {
 
 @media (max-width: 1280px) {
   .workspace-toolbar {
-    grid-template-columns: minmax(180px, 230px) auto minmax(0, 1fr) auto;
-  }
-
-  .toolbar-nav,
-  .toolbar-search {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(180px, 220px) auto minmax(240px, 1fr) auto 44px;
   }
 
   .toolbar-account {
@@ -1832,16 +2004,12 @@ textarea:focus-visible {
   }
 
   .workspace-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(180px, 1fr) auto auto;
   }
 
-  .toolbar-brand,
-  .toolbar-capture-action,
-  .toolbar-nav,
-  .toolbar-search,
-  .view-switch,
-  .toolbar-account {
-    width: 100%;
+  .toolbar-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .toolbar-nav,
@@ -1849,15 +2017,17 @@ textarea:focus-visible {
     overflow-x: auto;
   }
 
-  .workspace-grid,
-  .workspace-grid--capture-open {
+  .workspace-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .capture-drawer,
   .search-panel,
   .inspector-panel {
     max-height: none;
+  }
+
+  .capture-panel--hero {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1868,6 +2038,51 @@ textarea:focus-visible {
 
   .workspace-shell {
     padding: 10px;
+  }
+
+  .workspace-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .toolbar-brand {
+    grid-column: 1;
+  }
+
+  .toolbar-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .toolbar-search {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .toolbar-capture-action {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .toolbar-account {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .capture-layer__backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .capture-drawer {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+  }
+
+  .first-run-stage {
+    min-height: 620px;
+    padding: 28px 16px;
   }
 
   .view-switch {

@@ -419,7 +419,11 @@ export function projectGraphSnapshot(
       degree,
       importance: computeImportance(node.id, metrics, maxDegree, isRoot),
       level: levels.get(node.id) ?? 0,
-      position: layout[node.id]?.mindMap ?? positions.get(node.id) ?? { x: 80, y: 120 },
+      position:
+        node.savedPosition ??
+        layout[node.id]?.mindMap ??
+        positions.get(node.id) ??
+        { x: 80, y: 120 },
       galaxyPosition: [0, 0, 0],
     };
   });

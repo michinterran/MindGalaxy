@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { Download, Map as MapIcon, Orbit } from "lucide-react";
 import { CaptureDrawer } from "@/components/capture-drawer";
+import { CapturePanel } from "@/components/capture-panel";
 import { WorkspaceToolbar } from "@/components/workspace-toolbar";
-import { FEATURE_REGISTRY } from "@/config/registry";
+import {
+  FEATURE_REGISTRY,
+  GRAPH_INTERACTION_REGISTRY,
+} from "@/config/registry";
 import { ExportPanel } from "@/features/export/components/export-panel";
 import {
   KnowledgeMapClient,
-  KnowledgeMapInspector,
   type RecentCapture,
-  type ViewMode,
 } from "@/features/knowledge-map/components/knowledge-map-client";
+import {
+  createGraphEdge,
+  deleteGraphEdge,
+  deleteGraphNode,
+  updateGraphNode,
+} from "@/features/graph-mutations/api/graph-mutations-client";
+import {
+  NodeInspector,
+  type NodeInspectorActions,
+} from "@/features/graph-mutations/components/node-inspector";
+import {
+  deleteCapture,
+  getCaptureDetail,
+  retryProcessingJob,
+  updateCaptureTitle,
+} from "@/features/library/api/library-client";
+import {
+  LibraryDetailPanel,
+  type LibraryDetailActions,
+} from "@/features/library/components/library-detail-panel";
 import {
   DEMO_GRAPH_LAYOUT,
   getDemoGraphSnapshot,
@@ -18,17 +41,9 @@ import {
 } from "@/features/knowledge-map/demo/demo-graph";
 import type { GraphSnapshot } from "@/features/knowledge-map/model/graph";
 import { projectGraphSnapshot } from "@/features/knowledge-map/model/projection";
-import {
-  SearchCommandPanel,
-  type SearchPanelState,
-} from "@/features/search/components/search-command-panel";
-import {
-  isAbortError,
-  isLatestSearchRequest,
-  searchKnowledge,
-} from "@/features/search/api/search-client";
-import type { SearchResult } from "@/features/search/model/schemas";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { SearchCommandPanel } from "@/features/search/components/search-command-panel";
+import { useWorkspaceController } from "@/features/workspace/hooks/use-workspace-controller";
+import { DEFAULT_LOCALE, t, type Locale } from "@/lib/i18n";
 
 type KnowledgeWorkspaceProps = {
   workspace: {
@@ -92,22 +107,6 @@ export function KnowledgeWorkspace({
   userEmail,
   workspace,
 }: KnowledgeWorkspaceProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("mindmap");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showExportPanel, setShowExportPanel] = useState(false);
-  const [showSearchPanel, setShowSearchPanel] = useState(false);
-  const [showCapturePanel, setShowCapturePanel] = useState(false);
-  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null);
-  const [searchState, setSearchState] = useState<SearchPanelState>({
-    answer: null,
-    error: null,
-    query: "",
-    results: [],
-    status: "idle",
-  });
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const requestSequenceRef = useRef(0);
   const graphState = useMemo(
     () =>
       resolveGraphSnapshot({
@@ -122,228 +121,217 @@ export function KnowledgeWorkspace({
     () => projectGraphSnapshot(graphState.snapshot, graphState.layout),
     [graphState],
   );
-  const [selectedId, setSelectedId] = useState<string | null>(
-    projection.nodes[0]?.id ?? null,
+  const controller = useWorkspaceController({
+    captureCount,
+    graph: projection,
+    locale,
+    recentCaptures,
+    workspaceId: workspace.id,
+  });
+  const refreshWorkspace = controller.refresh;
+  const positionSaveQueueRef = useRef(new Map<string, Promise<void>>());
+  const nodeActions = useMemo<NodeInspectorActions>(
+    () => ({
+      createEdge: async ({ label, sourceNodeId, targetNodeId }) => {
+        await createGraphEdge({
+          workspaceId: workspace.id,
+          sourceNodeId,
+          targetNodeId,
+          kind: GRAPH_INTERACTION_REGISTRY.defaultEdgeKind,
+          label: label ?? null,
+        });
+        refreshWorkspace();
+      },
+      deleteEdge: async (edgeId) => {
+        await deleteGraphEdge(edgeId);
+        refreshWorkspace();
+      },
+      deleteNode: async (nodeId) => {
+        await deleteGraphNode(nodeId);
+        refreshWorkspace();
+      },
+      updateNode: async (nodeId, input) => {
+        await updateGraphNode(nodeId, input);
+        refreshWorkspace();
+      },
+    }),
+    [refreshWorkspace, workspace.id],
   );
-  const graphNodeIds = useMemo(
-    () => new Set(projection.nodes.map((node) => node.id)),
-    [projection.nodes],
-  );
-  const fallbackSelectedId = useMemo(
-    () =>
-      [...projection.nodes].sort(
-        (left, right) =>
-          right.importance - left.importance ||
-          left.level - right.level ||
-          left.title.localeCompare(right.title),
-      )[0]?.id ?? null,
-    [projection.nodes],
-  );
-  const effectiveSelectedId =
-    selectedId && graphNodeIds.has(selectedId) ? selectedId : fallbackSelectedId;
+  const saveNodePosition = useCallback(
+    (nodeId: string, position: { x: number; y: number }) => {
+      const previous = positionSaveQueueRef.current.get(nodeId) ?? Promise.resolve();
+      const next = previous
+        .catch(() => undefined)
+        .then(async () => {
+          await updateGraphNode(nodeId, { position });
+        });
 
-  useEffect(
-    () => () => {
-      requestSequenceRef.current += 1;
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
+      positionSaveQueueRef.current.set(nodeId, next);
+      void next.then(
+        () => {
+          if (positionSaveQueueRef.current.get(nodeId) === next) {
+            positionSaveQueueRef.current.delete(nodeId);
+          }
+        },
+        () => {
+          if (positionSaveQueueRef.current.get(nodeId) === next) {
+            positionSaveQueueRef.current.delete(nodeId);
+          }
+        },
+      );
+
+      return next;
     },
     [],
   );
-
-  function closeSearchPanel() {
-    requestSequenceRef.current += 1;
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    setShowSearchPanel(false);
-  }
-
-  function closePanels() {
-    closeSearchPanel();
-    setShowExportPanel(false);
-    setShowCapturePanel(false);
-  }
-
-  function openSearchPanel() {
-    setShowExportPanel(false);
-    setShowCapturePanel(false);
-    setShowSearchPanel(true);
-  }
-
-  function openExportPanel() {
-    closeSearchPanel();
-    setShowCapturePanel(false);
-    setShowExportPanel(true);
-  }
-
-  function openCapturePanel() {
-    closeSearchPanel();
-    setShowExportPanel(false);
-    setShowCapturePanel(true);
-  }
-
-  function selectCapture(captureId: string) {
-    setSelectedCaptureId(captureId);
-    setViewMode("list");
-    closePanels();
-  }
-
-  function changeViewMode(mode: ViewMode) {
-    setViewMode(mode);
-    closePanels();
-  }
-
-  async function submitSearch() {
-    const query = searchQuery.trim();
-
-    if (!query) return;
-
-    requestSequenceRef.current += 1;
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-
-    const controller = new AbortController();
-    const requestId = requestSequenceRef.current + 1;
-    requestSequenceRef.current = requestId;
-    abortControllerRef.current = controller;
-
-    setShowExportPanel(false);
-    setShowSearchPanel(true);
-    setSearchState({
-      answer: null,
-      error: null,
-      query,
-      results: [],
-      status: "loading",
-    });
-
-    try {
-      const payload = await searchKnowledge(
-        {
-          workspaceId: workspace.id,
-          query,
-          limit: 10,
-          locale,
-        },
-        { signal: controller.signal },
-      );
-
-      if (!isLatestSearchRequest(requestId, requestSequenceRef.current)) return;
-
-      setSearchState({
-        answer: payload.answer,
-        error: null,
-        query: payload.query,
-        results: payload.results,
-        status: "success",
-      });
-    } catch (error) {
-      if (isAbortError(error)) return;
-      if (!isLatestSearchRequest(requestId, requestSequenceRef.current)) return;
-
-      setSearchState({
-        answer: null,
-        error: null,
-        query,
-        results: [],
-        status: "error",
-      });
-    }
-  }
-
-  function selectSearchResult(result: SearchResult) {
-    const nodeId = result.resultId.startsWith("node:")
-      ? result.resultId.slice("node:".length)
-      : null;
-
-    if (nodeId && graphNodeIds.has(nodeId)) {
-      setSelectedId(nodeId);
-      setViewMode("mindmap");
-      closeSearchPanel();
-      return;
-    }
-
-    const captureId =
-      result.captureId ??
-      (result.resultId.startsWith("capture:")
-        ? result.resultId.slice("capture:".length)
-        : null);
-
-    if (result.sourceType === "capture" && captureId) {
-      selectCapture(captureId);
-    }
-  }
-
-  const activeSection = showExportPanel
-    ? "export"
-    : showSearchPanel
-      ? "search"
-      : viewMode;
+  const libraryActions = useMemo<LibraryDetailActions>(
+    () => ({
+      deleteCapture: async (captureId) => {
+        await deleteCapture(captureId);
+        refreshWorkspace();
+      },
+      loadCapture: getCaptureDetail,
+      retryProcessing: async (jobId) => {
+        await retryProcessingJob(jobId);
+        refreshWorkspace();
+      },
+      updateTitle: async (captureId, title) => {
+        await updateCaptureTitle(captureId, { title });
+        refreshWorkspace();
+      },
+    }),
+    [refreshWorkspace],
+  );
 
   return (
     <main className="mindgalaxy-app">
       <section className="workspace-shell">
         <WorkspaceToolbar
-          activeSection={activeSection}
+          activeArea={controller.activeArea}
           captureCount={captureCount}
           locale={locale}
-          onChange={changeViewMode}
-          onExportClick={openExportPanel}
-          onNewMaterialClick={openCapturePanel}
-          onSearchClick={openSearchPanel}
-          onSearchSubmit={submitSearch}
-          searchInputRef={searchInputRef}
-          searchQuery={searchQuery}
-          searchStatus={searchState.status}
-          setSearchQuery={setSearchQuery}
+          onAreaChange={controller.changeArea}
+          onNewMaterialClick={controller.openCapturePanel}
+          onSearchSubmit={controller.submitSearch}
+          searchInputRef={controller.searchInputRef}
+          searchQuery={controller.searchQuery}
+          searchStatus={controller.searchState.status}
+          setSearchQuery={controller.setSearchQuery}
           userEmail={userEmail}
           workspaceName={workspace.name}
         />
-        <div
-          className={`workspace-grid ${
-            showCapturePanel ? "workspace-grid--capture-open" : ""
-          }`}
-        >
-          {showCapturePanel ? (
-            <CaptureDrawer
-              locale={locale}
-              onClose={() => setShowCapturePanel(false)}
-              workspaceId={workspace.id}
-            />
-          ) : null}
-          <KnowledgeMapClient
-            graph={projection}
-            isDemo={graphState.isDemo}
+        {controller.showCapturePanel ? (
+          <CaptureDrawer
             locale={locale}
-            onSelect={setSelectedId}
-            onSelectCapture={selectCapture}
-            recentCaptures={recentCaptures}
-            selectedCaptureId={selectedCaptureId}
-            selectedId={effectiveSelectedId}
-            viewMode={viewMode}
+            onClose={controller.closeCapturePanel}
+            onViewLibrary={() => {
+              controller.closeCapturePanel();
+              controller.changeArea("library");
+            }}
+            workspaceId={workspace.id}
           />
-          {showSearchPanel ? (
+        ) : null}
+        <div className={`workspace-grid ${controller.showSidePanel ? "" : "workspace-grid--single"}`}>
+          {controller.showFirstRun ? (
+            <section className="first-run-stage">
+              <div className="first-run-stage__intro">
+                <p className="ui-kicker">{t(locale, "onboarding.kicker")}</p>
+                <h2>{t(locale, "onboarding.title")}</h2>
+                <p>{t(locale, "onboarding.description")}</p>
+                <div className="first-run-stage__trust">
+                  <span>{t(locale, "onboarding.trust.source")}</span>
+                  <span>{t(locale, "onboarding.trust.ai")}</span>
+                  <span>{t(locale, "onboarding.trust.retrieve")}</span>
+                </div>
+              </div>
+              <CapturePanel
+                autoFocus
+                locale={locale}
+                onCaptureCreated={() => {
+                  controller.changeArea("library");
+                }}
+                onViewLibrary={() => controller.changeArea("library")}
+                variant="hero"
+                workspaceId={workspace.id}
+              />
+            </section>
+          ) : (
+            <section className="knowledge-stage">
+              {controller.activeArea === "knowledge" ? (
+                <div className="knowledge-local-toolbar">
+                  <div className="knowledge-view-switch" aria-label={t(locale, "workspace.toolbar.viewModeAria")}>
+                    <button
+                      aria-pressed={controller.viewMode === "mindmap"}
+                      className={controller.viewMode === "mindmap" ? "is-active" : ""}
+                      onClick={() => controller.changeMapView("mindmap")}
+                      type="button"
+                    >
+                      <MapIcon className="size-4" />
+                      {t(locale, "workspace.view.mindmap")}
+                    </button>
+                    <button
+                      aria-pressed={controller.viewMode === "galaxy"}
+                      className={controller.viewMode === "galaxy" ? "is-active" : ""}
+                      onClick={() => controller.changeMapView("galaxy")}
+                      type="button"
+                    >
+                      <Orbit className="size-4" />
+                      {t(locale, "workspace.view.galaxy")}
+                      <em>{t(locale, "workspace.map.beta")}</em>
+                    </button>
+                  </div>
+                  <button className="knowledge-export-action" onClick={controller.openExportPanel} type="button">
+                    <Download className="size-4" />
+                    {t(locale, "workspace.nav.export")}
+                  </button>
+                </div>
+              ) : null}
+              <KnowledgeMapClient
+                graph={projection}
+                isDemo={graphState.isDemo}
+                locale={locale}
+                onNodePositionChange={saveNodePosition}
+                onSelect={controller.selectNode}
+                onSelectCapture={controller.selectCapture}
+                recentCaptures={recentCaptures}
+                selectedCaptureId={controller.selectedCaptureId}
+                selectedId={controller.effectiveSelectedId}
+                viewMode={controller.activeArea === "library" ? "list" : controller.viewMode}
+              />
+            </section>
+          )}
+          {controller.showSearchPanel ? (
             <SearchCommandPanel
               locale={locale}
-              onClose={closeSearchPanel}
-              onSelectResult={selectSearchResult}
-              state={searchState}
+              onClose={controller.closeSearchPanel}
+              onSelectResult={controller.selectSearchResult}
+              state={controller.searchState}
             />
-          ) : showExportPanel ? (
+          ) : controller.showExportPanel ? (
             <ExportPanel
               disabled={!projection.nodes.length || graphState.snapshot.source !== "workspace"}
               locale={locale}
-              onClose={() => setShowExportPanel(false)}
+              onClose={controller.closeExportPanel}
               workspaceId={workspace.id}
             />
-          ) : (
-            <KnowledgeMapInspector
-              captureCount={captureCount}
-              graph={projection}
+          ) : controller.showLibraryDetail && controller.selectedCaptureId ? (
+            <LibraryDetailPanel
+              actions={libraryActions}
+              captureId={controller.selectedCaptureId}
+              key={controller.selectedCaptureId}
               locale={locale}
-              selectedId={effectiveSelectedId}
+              onClose={controller.closeLibraryDetail}
             />
-          )}
+          ) : controller.showNodeInspector && controller.effectiveSelectedId ? (
+            <NodeInspector
+              actions={nodeActions}
+              graph={projection}
+              key={controller.effectiveSelectedId}
+              locale={locale}
+              onClose={controller.closeNodeInspector}
+              selectedId={controller.effectiveSelectedId}
+            />
+          ) : null}
         </div>
       </section>
     </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Line, OrbitControls, Stars, Text } from "@react-three/drei";
 import {
@@ -29,10 +30,12 @@ function nodeRadius(node: PositionedGraphNode, isRoot: boolean, isSelected: bool
 function GalaxyScene({
   graph,
   onSelect,
+  reduceMotion,
   selectedId,
 }: {
   graph: GraphProjection;
   onSelect: (id: string) => void;
+  reduceMotion: boolean;
   selectedId: string | null;
 }) {
   const nodes = graph.nodes.slice(0, 80);
@@ -46,7 +49,7 @@ function GalaxyScene({
       <ambientLight intensity={0.5} />
       <pointLight color="#d6ff6b" intensity={8} position={[0, 0, 5]} />
       <pointLight color="#67e8f9" intensity={3.5} position={[-3, 2, 3]} />
-      <Stars depth={55} factor={3} fade radius={80} saturation={0} speed={0.16} />
+      <Stars depth={55} factor={3} fade radius={80} saturation={0} speed={reduceMotion ? 0 : 0.16} />
       {graph.edges.map((edge) => {
         const source = nodePositions.get(edge.sourceNodeId);
         const target = nodePositions.get(edge.targetNodeId);
@@ -111,7 +114,7 @@ function GalaxyScene({
         );
       })}
       <OrbitControls
-        autoRotate
+        autoRotate={!reduceMotion}
         autoRotateSpeed={0.2}
         enableDamping
         maxDistance={8}
@@ -132,12 +135,27 @@ export function GalaxyView({
   onSelect: (id: string) => void;
   selectedId: string | null;
 }) {
+  const [reduceMotion, setReduceMotion] = useState(false);
   const selected = findNode(graph, selectedId) ?? rootNode(graph);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReduceMotion(mediaQuery.matches);
+
+    updatePreference();
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
 
   return (
     <section className="galaxy-stage" aria-label={t(locale, "workspace.graph.galaxyAria")}>
       <Canvas camera={{ position: [0, 0, 6], fov: 54 }}>
-        <GalaxyScene graph={graph} onSelect={onSelect} selectedId={selected?.id ?? null} />
+        <GalaxyScene
+          graph={graph}
+          onSelect={onSelect}
+          reduceMotion={reduceMotion}
+          selectedId={selected?.id ?? null}
+        />
       </Canvas>
       <div className="galaxy-hud">
         <p>{t(locale, "workspace.graph.galaxyKicker")}</p>

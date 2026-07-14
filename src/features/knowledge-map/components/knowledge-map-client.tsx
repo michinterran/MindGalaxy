@@ -82,6 +82,7 @@ export function KnowledgeMapClient({
   graph,
   isDemo,
   locale,
+  onNodePositionChange,
   onSelect,
   onSelectCapture,
   recentCaptures,
@@ -92,6 +93,10 @@ export function KnowledgeMapClient({
   graph: GraphProjection;
   isDemo: boolean;
   locale: Locale;
+  onNodePositionChange?: (
+    nodeId: string,
+    position: { x: number; y: number },
+  ) => Promise<void>;
   onSelect: (id: string) => void;
   onSelectCapture?: (captureId: string) => void;
   recentCaptures: RecentCapture[];
@@ -135,6 +140,7 @@ export function KnowledgeMapClient({
       graph={graph}
       isDemo={isDemo}
       locale={locale}
+      onNodePositionChange={onNodePositionChange}
       onSelect={onSelect}
       selectedId={selectedId}
     />

@@ -1,4 +1,5 @@
 import { PROCESSING_STATUS } from "@/config/domain";
+import type { EdgeKind } from "@/types/domain";
 
 export const MODEL_REGISTRY = {
   captureStructuring: {
@@ -27,6 +28,7 @@ export const JOB_REGISTRY = {
     model: MODEL_REGISTRY.captureStructuring,
     leaseSeconds: 120,
     maxAttempts: 3,
+    maxManualAttempts: 10,
     maxBatchSize: 5,
     retryBaseDelaySeconds: 60,
     limits: {
@@ -39,6 +41,10 @@ export const JOB_REGISTRY = {
       needsReviewThreshold: 0.55,
     },
   },
+} as const;
+
+export const JOB_SQL_PARITY_MARKER = {
+  maxManualAttempts: JOB_REGISTRY.captureStructuring.maxManualAttempts,
 } as const;
 
 export const SEARCH_REGISTRY = {
@@ -75,7 +81,25 @@ export const SEARCH_SQL_PARITY_MARKER = {
 } as const;
 
 export const FEATURE_REGISTRY = {
-  demoGraphFallback: true,
+  demoGraphFallback: false,
   galaxyRenderer: true,
   captureStructuringJobs: true,
+} as const;
+
+export const WORKSPACE_REGISTRY = {
+  activeJobPollIntervalMs: 4_000,
+  attentionStatuses: [
+    PROCESSING_STATUS.queued,
+    PROCESSING_STATUS.running,
+    PROCESSING_STATUS.needsReview,
+    PROCESSING_STATUS.failed,
+  ],
+  activeStatuses: [PROCESSING_STATUS.queued, PROCESSING_STATUS.running],
+  searchResultLimit: SEARCH_REGISTRY.defaultLimit,
+} as const;
+
+export const GRAPH_INTERACTION_REGISTRY = {
+  defaultEdgeKind: "relates_to" satisfies EdgeKind,
+  deleteUndoDelayMs: 5_000,
+  nodePositionSaveDebounceMs: 450,
 } as const;

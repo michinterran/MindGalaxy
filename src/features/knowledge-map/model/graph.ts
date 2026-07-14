@@ -11,6 +11,7 @@ export type GraphNode = {
   nodeKind?: string;
   confidenceLabel?: string;
   evidenceSnippet?: string;
+  savedPosition?: { x: number; y: number };
 };
 
 export type GraphEdge = {

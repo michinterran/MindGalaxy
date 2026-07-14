@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -9,8 +9,14 @@ import ReactFlow, {
   Panel,
   type Edge,
   type Node,
+  useNodesState,
 } from "reactflow";
 import { MindMapNode } from "@/features/knowledge-map/components/mind-map-node";
+import { GRAPH_INTERACTION_REGISTRY } from "@/config/registry";
+import {
+  createKeyedDebouncer,
+  type KeyedDebouncer,
+} from "@/features/graph-mutations/model/keyed-debouncer";
 import {
   GRAPH_TONE_COLORS,
   type GraphProjection,
@@ -22,6 +28,8 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n";
 const nodeTypes = {
   mindNode: MindMapNode,
 };
+
+type NodePosition = { x: number; y: number };
 
 const EDGE_LABEL_KEYS = {
   source: "graph.edge.source",
@@ -51,12 +59,17 @@ export function MindMapView({
   graph,
   isDemo,
   locale,
+  onNodePositionChange,
   onSelect,
   selectedId,
 }: {
   graph: GraphProjection;
   isDemo: boolean;
   locale: Locale;
+  onNodePositionChange?: (
+    nodeId: string,
+    position: { x: number; y: number },
+  ) => Promise<void>;
   onSelect: (id: string) => void;
   selectedId: string | null;
 }) {
@@ -64,7 +77,7 @@ export function MindMapView({
     () => selectedPathIds(graph, selectedId),
     [graph, selectedId],
   );
-  const nodes: Node[] = useMemo(
+  const projectedNodes: Node[] = useMemo(
     () =>
       graph.nodes.map((node) => ({
         id: node.id,
@@ -79,6 +92,53 @@ export function MindMapView({
       })),
     [graph.nodes, highlightedNodeIds, selectedId],
   );
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(projectedNodes);
+  const [positionStatus, setPositionStatus] = useState<
+    "idle" | "saving" | "success" | "error"
+  >("idle");
+  const positionSaverRef = useRef<
+    KeyedDebouncer<string, NodePosition> | null
+  >(null);
+
+  useEffect(() => {
+    setNodes((currentNodes) =>
+      projectedNodes.map((projectedNode) => ({
+        ...projectedNode,
+        position:
+          currentNodes.find((currentNode) => currentNode.id === projectedNode.id)
+            ?.position ?? projectedNode.position,
+      })),
+    );
+  }, [projectedNodes, setNodes]);
+
+  useEffect(() => {
+    if (!onNodePositionChange || isDemo) {
+      positionSaverRef.current = null;
+      return;
+    }
+
+    let isCurrent = true;
+    const positionSaver = createKeyedDebouncer(
+      async (nodeId: string, position: NodePosition) => {
+        try {
+          await onNodePositionChange(nodeId, position);
+          if (isCurrent) setPositionStatus("success");
+        } catch {
+          if (isCurrent) setPositionStatus("error");
+        }
+      },
+      GRAPH_INTERACTION_REGISTRY.nodePositionSaveDebounceMs,
+    );
+    positionSaverRef.current = positionSaver;
+
+    return () => {
+      isCurrent = false;
+      positionSaver.cancelAll();
+      if (positionSaverRef.current === positionSaver) {
+        positionSaverRef.current = null;
+      }
+    };
+  }, [isDemo, onNodePositionChange]);
 
   const edges: Edge[] = useMemo(
     () =>
@@ -95,12 +155,14 @@ export function MindMapView({
           target: edge.targetNodeId,
           type: "smoothstep",
           interactionWidth: 22,
-          label: edge.label ?? t(locale, EDGE_LABEL_KEYS[edge.tone ?? "related"]),
+          label: isHighlighted
+            ? edge.label ?? t(locale, EDGE_LABEL_KEYS[edge.tone ?? "related"])
+            : undefined,
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: GRAPH_TONE_COLORS[edgeTone],
-            width: 16,
-            height: 16,
+            width: 12,
+            height: 12,
           },
           labelStyle: {
             fill: "rgba(244,244,245,0.68)",
@@ -113,8 +175,8 @@ export function MindMapView({
           labelBgPadding: [6, 4] as [number, number],
           style: {
             stroke: GRAPH_TONE_COLORS[edgeTone],
-            strokeOpacity: isHighlighted || !selectedId ? 0.68 : 0.16,
-            strokeWidth: isHighlighted ? 2.4 : 1.35,
+            strokeOpacity: isHighlighted ? 0.82 : selectedId ? 0.12 : 0.3,
+            strokeWidth: isHighlighted ? 2.2 : 1.15,
           },
         };
       }),
@@ -122,6 +184,12 @@ export function MindMapView({
   );
 
   const legendTones: GraphTone[] = ["source", "ai", "evidence", "context", "action"];
+
+  function persistNodePosition(nodeId: string, position: NodePosition) {
+    if (!positionSaverRef.current) return;
+    setPositionStatus("saving");
+    positionSaverRef.current.schedule(nodeId, position);
+  }
 
   return (
     <section className="canvas-stage" aria-label={t(locale, "workspace.graph.mindMapAria")}>
@@ -162,7 +230,11 @@ export function MindMapView({
         nodesConnectable={false}
         nodesDraggable
         nodeTypes={nodeTypes}
+        onNodeDragStop={(_, node) => {
+          persistNodePosition(node.id, node.position);
+        }}
         onNodeClick={(_, node) => onSelect(node.id)}
+        onNodesChange={onNodesChange}
         panOnDrag
         panOnScroll
         proOptions={{ hideAttribution: true }}
@@ -174,10 +246,21 @@ export function MindMapView({
       >
         <Background
           color="rgba(255,255,255,0.12)"
-          gap={32}
-          variant={BackgroundVariant.Lines}
+          gap={42}
+          size={1}
+          variant={BackgroundVariant.Dots}
         />
         <Controls showInteractive={false} />
+        <Panel
+          className={`canvas-save-status canvas-save-status--${positionStatus}`}
+          position="bottom-left"
+        >
+          <span aria-live="polite" role="status">
+            {positionStatus === "idle"
+              ? null
+              : t(locale, `workspace.graph.position.${positionStatus}`)}
+          </span>
+        </Panel>
         <Panel className="canvas-help" position="bottom-right">
           {t(locale, "workspace.graph.interactionHint")}
         </Panel>

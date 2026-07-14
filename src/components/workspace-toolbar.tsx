@@ -2,29 +2,23 @@
 
 import { type RefObject, useEffect, useRef } from "react";
 import {
-  Download,
-  LayoutList,
+  Library,
   LogOut,
   Map,
-  Orbit,
   Plus,
   Search,
   Sparkles,
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
-import type { ViewMode } from "@/features/knowledge-map/components/knowledge-map-client";
+import type { WorkspaceArea } from "@/features/workspace/model/navigation";
 import { formatInteger, t, type Locale } from "@/lib/i18n";
 
-type ActiveSection = ViewMode | "search" | "export";
-
 export function WorkspaceToolbar({
-  activeSection,
+  activeArea,
   captureCount,
   locale,
-  onChange,
-  onExportClick,
+  onAreaChange,
   onNewMaterialClick,
-  onSearchClick,
   onSearchSubmit,
   searchQuery,
   searchInputRef,
@@ -33,13 +27,11 @@ export function WorkspaceToolbar({
   userEmail,
   workspaceName,
 }: {
-  activeSection: ActiveSection;
+  activeArea: WorkspaceArea;
   captureCount: number;
   locale: Locale;
-  onChange: (mode: ViewMode) => void;
-  onExportClick: () => void;
+  onAreaChange: (area: WorkspaceArea) => void;
   onNewMaterialClick: () => void;
-  onSearchClick: () => void;
   onSearchSubmit: () => void;
   searchQuery: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
@@ -52,35 +44,17 @@ export function WorkspaceToolbar({
   const inputRef = searchInputRef ?? fallbackInputRef;
   const navigation = [
     {
-      id: "mindmap",
-      label: t(locale, "workspace.view.mindmap"),
-      icon: Map,
-      onClick: () => onChange("mindmap"),
-    },
-    {
-      id: "galaxy",
-      label: t(locale, "workspace.view.galaxy"),
-      icon: Orbit,
-      onClick: () => onChange("galaxy"),
-    },
-    {
-      id: "list",
-      label: t(locale, "workspace.view.list"),
-      icon: LayoutList,
-      onClick: () => onChange("list"),
+      id: "library",
+      label: t(locale, "workspace.nav.library"),
+      icon: Library,
+      onClick: () => onAreaChange("library"),
       count: captureCount,
     },
     {
-      id: "search",
-      label: t(locale, "workspace.nav.search"),
-      icon: Search,
-      onClick: onSearchClick,
-    },
-    {
-      id: "export",
-      label: t(locale, "workspace.nav.export"),
-      icon: Download,
-      onClick: onExportClick,
+      id: "knowledge",
+      label: t(locale, "workspace.nav.knowledge"),
+      icon: Map,
+      onClick: () => onAreaChange("knowledge"),
     },
   ] as const;
 
@@ -123,8 +97,8 @@ export function WorkspaceToolbar({
 
           return (
             <button
-              aria-current={activeSection === item.id ? "page" : undefined}
-              className={activeSection === item.id ? "is-active" : ""}
+              aria-current={activeArea === item.id ? "page" : undefined}
+              className={activeArea === item.id ? "is-active" : ""}
               key={item.id}
               onClick={item.onClick}
               type="button"

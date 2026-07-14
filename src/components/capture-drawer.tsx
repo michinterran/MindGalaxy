@@ -9,10 +9,12 @@ import { t, type Locale } from "@/lib/i18n";
 export function CaptureDrawer({
   locale,
   onClose,
+  onViewLibrary,
   workspaceId,
 }: {
   locale: Locale;
   onClose: () => void;
+  onViewLibrary: () => void;
   workspaceId: string;
 }) {
   const titleId = useId();
@@ -24,33 +26,42 @@ export function CaptureDrawer({
   });
 
   return (
-    <aside
-      aria-labelledby={titleId}
-      aria-modal="true"
-      className="capture-drawer"
-      ref={panelRef}
-      role="dialog"
-      tabIndex={-1}
-    >
-      <header className="capture-drawer__header">
-        <h2 className="sr-only" id={titleId} ref={headingRef} tabIndex={-1}>
-          {t(locale, "capture.panelTitle")}
-        </h2>
-        <button
-          aria-label={t(locale, "capture.close")}
-          className="icon-button"
-          onClick={closeDrawer}
-          type="button"
-        >
-          <X className="size-4" />
-        </button>
-      </header>
-      <CapturePanel
-        autoFocus
-        locale={locale}
-        workspaceId={workspaceId}
-        variant="panel"
+    <div className="capture-layer">
+      <button
+        aria-label={t(locale, "capture.close")}
+        className="capture-layer__backdrop"
+        onClick={closeDrawer}
+        type="button"
       />
-    </aside>
+      <aside
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className="capture-drawer"
+        ref={panelRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <header className="capture-drawer__header">
+          <h2 id={titleId} ref={headingRef} tabIndex={-1}>
+            {t(locale, "capture.panelTitle")}
+          </h2>
+          <button
+            aria-label={t(locale, "capture.close")}
+            className="icon-button"
+            onClick={closeDrawer}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        </header>
+        <CapturePanel
+          autoFocus
+          locale={locale}
+          onViewLibrary={onViewLibrary}
+          workspaceId={workspaceId}
+          variant="panel"
+        />
+      </aside>
+    </div>
   );
 }
