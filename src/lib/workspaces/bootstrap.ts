@@ -8,6 +8,28 @@ type WorkspaceBootstrapResult = {
   isNew: boolean;
 };
 
+async function ensureOwnerMembership(
+  supabase: SupabaseClient<Database>,
+  workspaceId: string,
+  userId: string,
+) {
+  const { error } = await supabase.from("workspace_members").upsert(
+    {
+      workspace_id: workspaceId,
+      user_id: userId,
+      role: "owner",
+    },
+    {
+      onConflict: "workspace_id,user_id",
+    },
+  );
+
+  if (error) {
+    console.error("[workspace] membership upsert failed", error);
+    throw new Error("WORKSPACE_MEMBERSHIP_CREATE_FAILED");
+  }
+}
+
 export async function ensureDefaultWorkspace(
   supabase: SupabaseClient<Database>,
   user: User,
@@ -26,6 +48,8 @@ export async function ensureDefaultWorkspace(
   }
 
   if (existing) {
+    await ensureOwnerMembership(supabase, existing.id, user.id);
+
     return {
       id: existing.id,
       name: existing.name,
@@ -47,18 +71,7 @@ export async function ensureDefaultWorkspace(
     throw new Error("WORKSPACE_CREATE_FAILED");
   }
 
-  const { error: membershipError } = await supabase
-    .from("workspace_members")
-    .insert({
-      workspace_id: workspace.id,
-      user_id: user.id,
-      role: "owner",
-    });
-
-  if (membershipError) {
-    console.error("[workspace] membership create failed", membershipError);
-    throw new Error("WORKSPACE_MEMBERSHIP_CREATE_FAILED");
-  }
+  await ensureOwnerMembership(supabase, workspace.id, user.id);
 
   return {
     id: workspace.id,
