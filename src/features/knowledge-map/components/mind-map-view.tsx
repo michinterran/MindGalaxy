@@ -6,6 +6,7 @@ import ReactFlow, {
   BackgroundVariant,
   Controls,
   MarkerType,
+  Panel,
   type Edge,
   type Node,
 } from "reactflow";
@@ -16,11 +17,21 @@ import {
   type GraphTone,
 } from "@/features/knowledge-map/model/graph";
 import { shortestGraphPath } from "@/features/knowledge-map/model/projection";
-import { t, type Locale } from "@/lib/i18n";
+import { t, type Locale, type MessageKey } from "@/lib/i18n";
 
 const nodeTypes = {
   mindNode: MindMapNode,
 };
+
+const EDGE_LABEL_KEYS = {
+  source: "graph.edge.source",
+  ai: "graph.edge.ai",
+  topic: "graph.edge.topic",
+  evidence: "graph.edge.evidence",
+  context: "graph.edge.context",
+  action: "graph.edge.action",
+  related: "graph.edge.related",
+} as const satisfies Record<GraphTone | "related", MessageKey>;
 
 function selectedPathIds(graph: GraphProjection, selectedId: string | null) {
   if (!selectedId) return new Set<string>();
@@ -72,6 +83,7 @@ export function MindMapView({
   const edges: Edge[] = useMemo(
     () =>
       graph.edges.map((edge) => {
+        const edgeTone = edge.tone ?? "source";
         const isHighlighted =
           Boolean(selectedId) &&
           highlightedNodeIds.has(edge.sourceNodeId) &&
@@ -82,10 +94,11 @@ export function MindMapView({
           source: edge.sourceNodeId,
           target: edge.targetNodeId,
           type: "smoothstep",
-          label: edge.label,
+          interactionWidth: 22,
+          label: edge.label ?? t(locale, EDGE_LABEL_KEYS[edge.tone ?? "related"]),
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: GRAPH_TONE_COLORS[edge.tone ?? "source"],
+            color: GRAPH_TONE_COLORS[edgeTone],
             width: 16,
             height: 16,
           },
@@ -99,13 +112,13 @@ export function MindMapView({
           },
           labelBgPadding: [6, 4] as [number, number],
           style: {
-            stroke: GRAPH_TONE_COLORS[edge.tone ?? "source"],
+            stroke: GRAPH_TONE_COLORS[edgeTone],
             strokeOpacity: isHighlighted || !selectedId ? 0.68 : 0.16,
             strokeWidth: isHighlighted ? 2.4 : 1.35,
           },
         };
       }),
-    [graph.edges, highlightedNodeIds, selectedId],
+    [graph.edges, highlightedNodeIds, locale, selectedId],
   );
 
   const legendTones: GraphTone[] = ["source", "ai", "evidence", "context", "action"];
@@ -124,6 +137,11 @@ export function MindMapView({
               ? t(locale, "workspace.graph.sampleTitle")
               : t(locale, "workspace.graph.realTitle")}
           </h2>
+          <span className="canvas-stage__description">
+            {isDemo
+              ? t(locale, "workspace.graph.sampleDescription")
+              : t(locale, "workspace.graph.realDescription")}
+          </span>
         </div>
         <div className="graph-legend">
           {legendTones.map((tone) => (
@@ -141,9 +159,18 @@ export function MindMapView({
         maxZoom={1.35}
         minZoom={0.38}
         nodes={nodes}
+        nodesConnectable={false}
+        nodesDraggable
         nodeTypes={nodeTypes}
         onNodeClick={(_, node) => onSelect(node.id)}
+        panOnDrag
+        panOnScroll
         proOptions={{ hideAttribution: true }}
+        selectNodesOnDrag={false}
+        elementsSelectable
+        zoomOnDoubleClick
+        zoomOnPinch
+        zoomOnScroll
       >
         <Background
           color="rgba(255,255,255,0.12)"
@@ -151,6 +178,9 @@ export function MindMapView({
           variant={BackgroundVariant.Lines}
         />
         <Controls showInteractive={false} />
+        <Panel className="canvas-help" position="bottom-right">
+          {t(locale, "workspace.graph.interactionHint")}
+        </Panel>
       </ReactFlow>
     </section>
   );

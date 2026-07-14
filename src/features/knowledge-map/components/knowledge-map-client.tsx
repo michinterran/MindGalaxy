@@ -13,7 +13,7 @@ import {
   type GraphProjection,
   type GraphTone,
 } from "@/features/knowledge-map/model/graph";
-import { formatDateTime, formatInteger, t, type Locale } from "@/lib/i18n";
+import { formatDateTime, formatInteger, t, type Locale, type MessageKey } from "@/lib/i18n";
 import {
   captureSourceLabel,
   processingStatusLabel,
@@ -58,6 +58,20 @@ export type ViewMode = "mindmap" | "galaxy" | "list";
 
 function getToneClass(tone: GraphTone) {
   return `mind-node--${tone}`;
+}
+
+const EDGE_LABEL_KEYS = {
+  source: "graph.edge.source",
+  ai: "graph.edge.ai",
+  topic: "graph.edge.topic",
+  evidence: "graph.edge.evidence",
+  context: "graph.edge.context",
+  action: "graph.edge.action",
+  related: "graph.edge.related",
+} as const satisfies Record<GraphTone | "related", MessageKey>;
+
+function edgeRelationLabel(locale: Locale, tone?: GraphTone, label?: string | null) {
+  return label ?? t(locale, EDGE_LABEL_KEYS[tone ?? "related"]);
 }
 
 function findNode(graph: GraphProjection, id: string | null) {
@@ -198,17 +212,25 @@ export function KnowledgeMapInspector({
   selectedId: string | null;
 }) {
   const node = findNode(graph, selectedId);
-  const linkedNodes = node
+  const linkedItems = node
     ? graph.edges
         .filter(
           (edge) => edge.sourceNodeId === node.id || edge.targetNodeId === node.id,
         )
-        .map((edge) =>
-          findNode(
+        .map((edge) => {
+          const linkedNode = findNode(
             graph,
             edge.sourceNodeId === node.id ? edge.targetNodeId : edge.sourceNodeId,
-          ),
-        )
+          );
+
+          return linkedNode
+            ? {
+                edge,
+                node: linkedNode,
+                relation: edgeRelationLabel(locale, edge.tone, edge.label),
+              }
+            : null;
+        })
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
   const evidenceText =
@@ -249,10 +271,13 @@ export function KnowledgeMapInspector({
           <h2>{t(locale, "workspace.inspector.connectionsTitle")}</h2>
         </div>
         <div className="connection-list">
-          {linkedNodes.map((item) => (
-            <div key={item.id}>
-              <span style={{ backgroundColor: GRAPH_TONE_COLORS[item.tone] }} />
-              <p>{item.title}</p>
+          {linkedItems.map((item) => (
+            <div key={item.edge.id}>
+              <span style={{ backgroundColor: GRAPH_TONE_COLORS[item.edge.tone ?? item.node.tone] }} />
+              <p>
+                <strong>{item.relation}</strong>
+                {item.node.title}
+              </p>
             </div>
           ))}
         </div>

@@ -6,10 +6,13 @@ import {
   ArrowRight,
   Bot,
   CheckCircle2,
+  FileCheck2,
   FileText,
   Loader2,
   MessageSquareText,
+  Network,
   Sparkles,
+  Tags,
 } from "lucide-react";
 import {
   CaptureClientError,
@@ -74,6 +77,7 @@ export function CapturePanel({
   const source = useMemo(() => detectSource(rawText, locale), [locale, rawText]);
   const SourceIcon = source.icon;
   const textLength = rawText.trim().length;
+  const hasRawText = textLength > 0;
   const isHero = variant === "hero";
 
   useEffect(() => {
@@ -165,6 +169,26 @@ export function CapturePanel({
               ? t(locale, "capture.heroTitle")
               : t(locale, "capture.panelTitle")}
           </h2>
+          <p className="capture-panel__description">
+            {t(locale, "capture.description")}
+          </p>
+          <div className="capture-panel__flow" aria-hidden="true">
+            <span>
+              <em>1</em>
+              <FileCheck2 className="size-4" />
+              {t(locale, "capture.flow.source")}
+            </span>
+            <span>
+              <em>2</em>
+              <Network className="size-4" />
+              {t(locale, "capture.flow.node")}
+            </span>
+            <span>
+              <em>3</em>
+              <Tags className="size-4" />
+              {t(locale, "capture.flow.context")}
+            </span>
+          </div>
         </div>
         <div className="source-pill">
           <SourceIcon className="size-4" />
@@ -172,64 +196,66 @@ export function CapturePanel({
         </div>
       </div>
 
-      {showTitle ? (
-        <label className="field-label" htmlFor="capture-title">
-          {t(locale, "capture.titleLabel")}
-          <input
-            id="capture-title"
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder={t(locale, "capture.titlePlaceholder")}
-            type="text"
-            value={title}
+      <div className="capture-panel__composer">
+        {showTitle ? (
+          <label className="field-label" htmlFor="capture-title">
+            {t(locale, "capture.titleLabel")}
+            <input
+              id="capture-title"
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t(locale, "capture.titlePlaceholder")}
+              type="text"
+              value={title}
+            />
+          </label>
+        ) : null}
+
+        <label className="field-label" htmlFor="capture-raw-text">
+          {t(locale, "capture.rawTextLabel")}
+          <textarea
+            id="capture-raw-text"
+            onChange={(event) => setRawText(event.target.value)}
+            placeholder={t(locale, "capture.rawTextPlaceholder")}
+            ref={rawTextRef}
+            value={rawText}
           />
         </label>
-      ) : null}
 
-      <label className="field-label" htmlFor="capture-raw-text">
-        {t(locale, "capture.rawTextLabel")}
-        <textarea
-          id="capture-raw-text"
-          onChange={(event) => setRawText(event.target.value)}
-          placeholder={t(locale, "capture.rawTextPlaceholder")}
-          ref={rawTextRef}
-          value={rawText}
-        />
-      </label>
+        <div className="capture-panel__meta">
+          <button
+            className="ghost-button"
+            onClick={() => setShowTitle((value) => !value)}
+            type="button"
+          >
+            {showTitle
+              ? t(locale, "capture.hideTitle")
+              : t(locale, "capture.showTitle")}
+          </button>
+          <span>
+            {t(locale, "capture.characterUnit", {
+              count: formatInteger(locale, textLength),
+            })}
+          </span>
+        </div>
 
-      <div className="capture-panel__meta">
+        <div className={`status-line status-line--${state.kind}`}>
+          {state.kind === "saving" ? <Loader2 className="size-4 animate-spin" /> : null}
+          {state.kind === "success" ? <CheckCircle2 className="size-4" /> : null}
+          <span>{state.message}</span>
+        </div>
+
         <button
-          className="ghost-button"
-          onClick={() => setShowTitle((value) => !value)}
+          className={`primary-button ${hasRawText ? "primary-button--ready" : "primary-button--empty"}`}
+          disabled={isPending || !hasRawText}
+          onClick={submitCapture}
           type="button"
         >
-          {showTitle
-            ? t(locale, "capture.hideTitle")
-            : t(locale, "capture.showTitle")}
+          {isPending
+            ? t(locale, "capture.cta.pending")
+            : t(locale, "capture.cta.idle")}
+          <ArrowRight className="size-4" />
         </button>
-        <span>
-          {t(locale, "capture.characterUnit", {
-            count: formatInteger(locale, textLength),
-          })}
-        </span>
       </div>
-
-      <div className={`status-line status-line--${state.kind}`}>
-        {state.kind === "saving" ? <Loader2 className="size-4 animate-spin" /> : null}
-        {state.kind === "success" ? <CheckCircle2 className="size-4" /> : null}
-        <span>{state.message}</span>
-      </div>
-
-      <button
-        className="primary-button"
-        disabled={isPending}
-        onClick={submitCapture}
-        type="button"
-      >
-        {isPending
-          ? t(locale, "capture.cta.pending")
-          : t(locale, "capture.cta.idle")}
-        <ArrowRight className="size-4" />
-      </button>
     </section>
   );
 }
