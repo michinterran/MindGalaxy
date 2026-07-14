@@ -33,7 +33,7 @@ export function CaptureDrawer({
       tabIndex={-1}
     >
       <header className="capture-drawer__header">
-        <h2 id={titleId} ref={headingRef} tabIndex={-1}>
+        <h2 className="sr-only" id={titleId} ref={headingRef} tabIndex={-1}>
           {t(locale, "capture.panelTitle")}
         </h2>
         <button

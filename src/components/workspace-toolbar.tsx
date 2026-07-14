@@ -2,42 +2,87 @@
 
 import { type RefObject, useEffect, useRef } from "react";
 import {
+  Download,
   LayoutList,
+  LogOut,
   Map,
   Orbit,
+  Plus,
   Search,
+  Sparkles,
 } from "lucide-react";
+import { signOut } from "@/app/auth/actions";
 import type { ViewMode } from "@/features/knowledge-map/components/knowledge-map-client";
-import { t, type Locale } from "@/lib/i18n";
+import { formatInteger, t, type Locale } from "@/lib/i18n";
+
+type ActiveSection = ViewMode | "search" | "export";
 
 export function WorkspaceToolbar({
-  current,
+  activeSection,
+  captureCount,
   locale,
   onChange,
+  onExportClick,
+  onNewMaterialClick,
+  onSearchClick,
   onSearchSubmit,
   searchQuery,
   searchInputRef,
   searchStatus,
   setSearchQuery,
+  userEmail,
   workspaceName,
 }: {
-  current: ViewMode;
+  activeSection: ActiveSection;
+  captureCount: number;
   locale: Locale;
   onChange: (mode: ViewMode) => void;
+  onExportClick: () => void;
+  onNewMaterialClick: () => void;
+  onSearchClick: () => void;
   onSearchSubmit: () => void;
   searchQuery: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
   searchStatus: "idle" | "loading" | "success" | "error";
   setSearchQuery: (value: string) => void;
+  userEmail?: string | null;
   workspaceName: string;
 }) {
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const inputRef = searchInputRef ?? fallbackInputRef;
-  const tabs: Array<{ id: ViewMode; label: string; icon: typeof Map }> = [
-    { id: "mindmap", label: t(locale, "workspace.view.mindmap"), icon: Map },
-    { id: "galaxy", label: t(locale, "workspace.view.galaxy"), icon: Orbit },
-    { id: "list", label: t(locale, "workspace.view.list"), icon: LayoutList },
-  ];
+  const navigation = [
+    {
+      id: "mindmap",
+      label: t(locale, "workspace.view.mindmap"),
+      icon: Map,
+      onClick: () => onChange("mindmap"),
+    },
+    {
+      id: "galaxy",
+      label: t(locale, "workspace.view.galaxy"),
+      icon: Orbit,
+      onClick: () => onChange("galaxy"),
+    },
+    {
+      id: "list",
+      label: t(locale, "workspace.view.list"),
+      icon: LayoutList,
+      onClick: () => onChange("list"),
+      count: captureCount,
+    },
+    {
+      id: "search",
+      label: t(locale, "workspace.nav.search"),
+      icon: Search,
+      onClick: onSearchClick,
+    },
+    {
+      id: "export",
+      label: t(locale, "workspace.nav.export"),
+      icon: Download,
+      onClick: onExportClick,
+    },
+  ] as const;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -53,10 +98,44 @@ export function WorkspaceToolbar({
 
   return (
     <header className="workspace-toolbar">
-      <div className="workspace-title">
-        <p>{workspaceName}</p>
-        <h1>{t(locale, "workspace.toolbar.title")}</h1>
+      <div className="brand-lockup toolbar-brand">
+        <div className="brand-mark">
+          <Sparkles className="size-5" />
+        </div>
+        <div className="workspace-title">
+          <p>{workspaceName}</p>
+          <h1>{t(locale, "workspace.toolbar.title")}</h1>
+        </div>
       </div>
+
+      <button
+        className="toolbar-capture-action"
+        onClick={onNewMaterialClick}
+        type="button"
+      >
+        <Plus className="size-4" />
+        {t(locale, "workspace.sidebar.newMaterial")}
+      </button>
+
+      <nav className="toolbar-nav" aria-label={t(locale, "workspace.nav.aria")}>
+        {navigation.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              aria-current={activeSection === item.id ? "page" : undefined}
+              className={activeSection === item.id ? "is-active" : ""}
+              key={item.id}
+              onClick={item.onClick}
+              type="button"
+            >
+              <Icon className="size-4" />
+              <span>{item.label}</span>
+              {"count" in item ? <em>{formatInteger(locale, item.count)}</em> : null}
+            </button>
+          );
+        })}
+      </nav>
 
       <form
         className={`toolbar-search toolbar-search--${searchStatus}`}
@@ -78,30 +157,21 @@ export function WorkspaceToolbar({
         <kbd>{t(locale, "workspace.toolbar.searchShortcut")}</kbd>
       </form>
 
-      <div
-        className="view-switch"
-        role="tablist"
-        aria-label={t(locale, "workspace.toolbar.viewModeAria")}
-      >
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-
-          return (
-            <button
-              aria-selected={current === tab.id}
-              className={current === tab.id ? "is-active" : ""}
-              key={tab.id}
-              onClick={() => onChange(tab.id)}
-              role="tab"
-              type="button"
-            >
-              <Icon className="size-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      <div className="toolbar-account">
+        <div className="user-chip" title={userEmail ?? undefined}>
+          {userEmail ?? "user"}
+        </div>
+        <form action={signOut}>
+          <button
+            aria-label={t(locale, "auth.signOut")}
+            className="icon-button"
+            title={t(locale, "auth.signOut")}
+            type="submit"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </form>
       </div>
-
     </header>
   );
 }

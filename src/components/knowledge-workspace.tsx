@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CaptureDrawer } from "@/components/capture-drawer";
-import { CapturePanel } from "@/components/capture-panel";
-import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { WorkspaceToolbar } from "@/components/workspace-toolbar";
 import { FEATURE_REGISTRY } from "@/config/registry";
 import { ExportPanel } from "@/features/export/components/export-panel";
@@ -127,7 +125,6 @@ export function KnowledgeWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(
     projection.nodes[0]?.id ?? null,
   );
-  const showHeroCapture = captureCount === 0 && graphState.isDemo;
   const graphNodeIds = useMemo(
     () => new Set(projection.nodes.map((node) => node.id)),
     [projection.nodes],
@@ -191,13 +188,8 @@ export function KnowledgeWorkspace({
     closePanels();
   }
 
-  function goToMap() {
-    setViewMode("mindmap");
-    closePanels();
-  }
-
-  function goToInbox() {
-    setViewMode("list");
+  function changeViewMode(mode: ViewMode) {
+    setViewMode(mode);
     closePanels();
   }
 
@@ -286,75 +278,51 @@ export function KnowledgeWorkspace({
     ? "export"
     : showSearchPanel
       ? "search"
-      : viewMode === "list"
-        ? "inbox"
-        : "map";
+      : viewMode;
 
   return (
     <main className="mindgalaxy-app">
-      <WorkspaceSidebar
-        activeSection={activeSection}
-        captureCount={captureCount}
-        locale={locale}
-        onExportClick={openExportPanel}
-        onHomeClick={goToMap}
-        onInboxClick={goToInbox}
-        onMapClick={goToMap}
-        onNewMaterialClick={openCapturePanel}
-        onRecentCaptureClick={selectCapture}
-        onSearchClick={openSearchPanel}
-        recentCaptures={recentCaptures}
-        selectedCaptureId={selectedCaptureId}
-        userEmail={userEmail}
-      />
       <section className="workspace-shell">
         <WorkspaceToolbar
-          current={viewMode}
+          activeSection={activeSection}
+          captureCount={captureCount}
           locale={locale}
-          onChange={setViewMode}
+          onChange={changeViewMode}
+          onExportClick={openExportPanel}
+          onNewMaterialClick={openCapturePanel}
+          onSearchClick={openSearchPanel}
           onSearchSubmit={submitSearch}
           searchInputRef={searchInputRef}
           searchQuery={searchQuery}
           searchStatus={searchState.status}
           setSearchQuery={setSearchQuery}
+          userEmail={userEmail}
           workspaceName={workspace.name}
         />
-        <div className="workspace-grid">
-          {showHeroCapture ? (
-            <div className="workspace-stack">
-              <CapturePanel locale={locale} workspaceId={workspace.id} variant="hero" />
-              <KnowledgeMapClient
-                graph={projection}
-                isDemo={graphState.isDemo}
-                locale={locale}
-                onSelect={setSelectedId}
-                onSelectCapture={selectCapture}
-                recentCaptures={recentCaptures}
-                selectedCaptureId={selectedCaptureId}
-                selectedId={effectiveSelectedId}
-                viewMode={viewMode}
-              />
-            </div>
-          ) : (
-            <KnowledgeMapClient
-              graph={projection}
-              isDemo={graphState.isDemo}
-              locale={locale}
-              onSelect={setSelectedId}
-              onSelectCapture={selectCapture}
-              recentCaptures={recentCaptures}
-              selectedCaptureId={selectedCaptureId}
-              selectedId={effectiveSelectedId}
-              viewMode={viewMode}
-            />
-          )}
+        <div
+          className={`workspace-grid ${
+            showCapturePanel ? "workspace-grid--capture-open" : ""
+          }`}
+        >
           {showCapturePanel ? (
             <CaptureDrawer
               locale={locale}
               onClose={() => setShowCapturePanel(false)}
               workspaceId={workspace.id}
             />
-          ) : showSearchPanel ? (
+          ) : null}
+          <KnowledgeMapClient
+            graph={projection}
+            isDemo={graphState.isDemo}
+            locale={locale}
+            onSelect={setSelectedId}
+            onSelectCapture={selectCapture}
+            recentCaptures={recentCaptures}
+            selectedCaptureId={selectedCaptureId}
+            selectedId={effectiveSelectedId}
+            viewMode={viewMode}
+          />
+          {showSearchPanel ? (
             <SearchCommandPanel
               locale={locale}
               onClose={closeSearchPanel}
