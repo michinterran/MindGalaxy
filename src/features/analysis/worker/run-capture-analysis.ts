@@ -57,7 +57,7 @@ function attachVerifiedEvidence(
               processingJobId,
               attemptId,
             }
-          : undefined,
+          : null,
       };
     }),
     edges: analysis.edges.map((edge) => {
@@ -75,7 +75,7 @@ function attachVerifiedEvidence(
               processingJobId,
               attemptId,
             }
-          : undefined,
+          : null,
       };
     }),
     contexts: analysis.contexts.map((context) => {
@@ -93,7 +93,7 @@ function attachVerifiedEvidence(
               processingJobId,
               attemptId,
             }
-          : undefined,
+          : null,
       };
     }),
   } satisfies CaptureAnalysisOutput;

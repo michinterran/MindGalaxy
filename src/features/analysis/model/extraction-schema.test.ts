@@ -1,16 +1,27 @@
 import { describe, expect, it } from "vitest";
+import { zodTextFormat } from "openai/helpers/zod";
 import { captureAnalysisSchema } from "@/features/analysis/model/extraction-schema";
 
 describe("captureAnalysisSchema", () => {
   it("accepts a minimal grounded graph", () => {
     const parsed = captureAnalysisSchema.parse({
+      captureSummary: null,
       language: "ko",
-      contexts: [{ clientContextId: "c1", kind: "topic", label: "MVP" }],
+      contexts: [
+        {
+          clientContextId: "c1",
+          kind: "topic",
+          label: "MVP",
+          normalizedValue: null,
+          evidence: null,
+        },
+      ],
       nodes: [
         {
           clientNodeId: "n1",
           kind: "idea",
           title: "붙여넣기 중심",
+          summary: null,
           evidence: { quote: "붙여넣기 중심" },
           contextClientIds: ["c1"],
           confidence: 0.8,
@@ -20,6 +31,12 @@ describe("captureAnalysisSchema", () => {
     });
 
     expect(parsed.nodes[0]?.clientNodeId).toBe("n1");
+  });
+
+  it("is compatible with the Responses API strict structured-output format", () => {
+    expect(() =>
+      zodTextFormat(captureAnalysisSchema, "capture_analysis"),
+    ).not.toThrow();
   });
 
   it("rejects too many nodes", () => {
@@ -32,6 +49,8 @@ describe("captureAnalysisSchema", () => {
 
     expect(() =>
       captureAnalysisSchema.parse({
+        captureSummary: null,
+        language: "unknown",
         nodes,
         edges: [],
         contexts: [],

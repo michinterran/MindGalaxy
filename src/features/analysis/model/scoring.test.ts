@@ -3,6 +3,7 @@ import { scoreAnalysis } from "@/features/analysis/model/scoring";
 
 describe("scoreAnalysis", () => {
   const baseAnalysis = {
+    captureSummary: null,
     language: "ko" as const,
     contexts: [],
     nodes: [
@@ -10,6 +11,8 @@ describe("scoreAnalysis", () => {
         clientNodeId: "n1",
         kind: "idea" as const,
         title: "아이디어",
+        summary: null,
+        evidence: null,
         confidence: 0.9,
         contextClientIds: [],
       },
@@ -42,6 +45,8 @@ describe("scoreAnalysis", () => {
             sourceClientNodeId: "n1",
             targetClientNodeId: "missing",
             kind: "relates_to" as const,
+            label: null,
+            evidence: null,
             confidence: 0.8,
           },
         ],

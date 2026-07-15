@@ -25,6 +25,13 @@ export function analysisErrorCode(error: unknown) {
   }
 
   if (error instanceof Error) {
+    if (
+      error.message.includes("Zod field at") &&
+      error.message.includes("not supported by the API")
+    ) {
+      return "ANALYSIS_OUTPUT_SCHEMA_INVALID";
+    }
+
     if (/^[A-Z][A-Z0-9_]{2,80}$/.test(error.message)) {
       return error.message;
     }
