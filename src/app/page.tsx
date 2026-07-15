@@ -21,10 +21,12 @@ function AuthScreen({
         <div className="auth-copy">
           <div className="auth-badge">
             <ShieldCheck className="size-4" />
-            {t(locale, "auth.badge")}
+            {t(locale, "brand.philosophy")}
           </div>
-          <h1>{t(locale, "auth.title")}</h1>
-          <p>{t(locale, "auth.description")}</p>
+          <h1>{t(locale, "brand.slogan")}</h1>
+          <p className="auth-value-statement">
+            {t(locale, "brand.description")}
+          </p>
           <div className="auth-preview" aria-hidden="true">
             <Network className="size-5" />
             <span>{t(locale, "auth.preview.mindMap")}</span>

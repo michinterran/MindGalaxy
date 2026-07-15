@@ -107,26 +107,44 @@ textarea:focus-visible {
 }
 
 .auth-screen {
+  position: relative;
+  isolation: isolate;
   display: grid;
   align-items: center;
   padding: 24px;
+  overflow: hidden;
+}
+
+.auth-screen::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 82%);
+  content: "";
+  pointer-events: none;
 }
 
 .auth-shell {
   display: grid;
-  width: min(1040px, 100%);
+  width: min(1160px, 100%);
   margin: 0 auto;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 36px;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: clamp(48px, 7vw, 92px);
   align-items: center;
 }
 
 .auth-copy h1 {
-  max-width: 680px;
-  margin: 18px 0 0;
-  font-size: clamp(40px, 7vw, 72px);
-  font-weight: 780;
-  line-height: 1.03;
+  max-width: 720px;
+  margin: 22px 0 0;
+  font-size: clamp(44px, 6.4vw, 76px);
+  font-weight: 790;
+  letter-spacing: -0.055em;
+  line-height: 1.04;
+  text-wrap: balance;
 }
 
 .auth-copy p,
@@ -137,22 +155,27 @@ textarea:focus-visible {
   line-height: 1.7;
 }
 
-.auth-copy p {
-  max-width: 580px;
-  margin: 22px 0 0;
+.auth-copy .auth-value-statement {
+  max-width: 650px;
+  margin: 26px 0 0;
+  color: #b8b8c0;
+  font-size: 16px;
+  line-height: 1.8;
+  text-wrap: pretty;
 }
 
 .auth-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(125, 211, 252, 0.22);
+  border: 1px solid rgba(214, 255, 107, 0.22);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 8px 10px;
-  color: var(--source);
+  background: rgba(214, 255, 107, 0.055);
+  padding: 9px 12px;
+  color: var(--signal);
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.025em;
 }
 
 .auth-preview {
@@ -183,15 +206,18 @@ textarea:focus-visible {
 .auth-card,
 .system-card {
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: 16px;
   background: rgba(11, 11, 13, 0.9);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
 }
 
 .auth-card {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 18px;
+  padding: 24px;
+  box-shadow:
+    0 32px 90px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .auth-card h2,

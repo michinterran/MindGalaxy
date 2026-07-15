@@ -1,9 +1,10 @@
+import { BRAND_COPY } from "@/config/brand";
+
 const ko = {
     "app.locale": "ko-KR",
-    "auth.badge": "원문을 잃지 않는 AI 지식지도",
-    "auth.title": "복사한 지식이 바로 정리되는 개인 지식지도",
-    "auth.description":
-      "Google 또는 이메일로 로그인하면 개인 작업공간이 자동으로 생성됩니다. 이후 붙여넣은 원문은 안전하게 저장되고, AI 정리 작업은 순서대로 처리됩니다.",
+    "brand.slogan": BRAND_COPY.ko.slogan,
+    "brand.philosophy": BRAND_COPY.ko.philosophy,
+    "brand.description": BRAND_COPY.ko.description,
     "auth.preview.mindMap": "Mind Map",
     "auth.preview.galaxy": "Galaxy",
     "auth.preview.export": "Export",
@@ -86,7 +87,6 @@ const ko = {
     "workspace.view.galaxy": "Galaxy",
     "workspace.view.list": "목록",
     "workspace.map.beta": "BETA",
-    "onboarding.kicker": "첫 번째 기억",
     "onboarding.title": "복사한 내용을 붙여넣는 것부터 시작하세요",
     "onboarding.description":
       "MindGalaxy는 원문을 먼저 보존한 뒤 AI가 주제, 사람, 시간, 장소와 근거를 연결합니다. 제목이나 폴더를 미리 정할 필요가 없습니다.",
@@ -298,10 +298,9 @@ const ko = {
 
 const en = {
     "app.locale": "en-US",
-    "auth.badge": "An AI knowledge map that preserves every source",
-    "auth.title": "A personal knowledge map that organizes copied knowledge instantly",
-    "auth.description":
-      "Sign in with Google or email to create a personal workspace automatically. Pasted source text is stored safely, and AI structuring work is queued as jobs.",
+    "brand.slogan": BRAND_COPY.en.slogan,
+    "brand.philosophy": BRAND_COPY.en.philosophy,
+    "brand.description": BRAND_COPY.en.description,
     "auth.preview.mindMap": "Mind Map",
     "auth.preview.galaxy": "Galaxy",
     "auth.preview.export": "Export",
@@ -384,7 +383,6 @@ const en = {
     "workspace.view.galaxy": "Galaxy",
     "workspace.view.list": "List",
     "workspace.map.beta": "BETA",
-    "onboarding.kicker": "Your first memory",
     "onboarding.title": "Start by pasting something you copied",
     "onboarding.description":
       "MindGalaxy preserves the source first, then AI connects topics, people, time, places, and evidence. You do not need to choose a title or folder up front.",

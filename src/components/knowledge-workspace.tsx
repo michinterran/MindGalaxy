@@ -235,7 +235,7 @@ export function KnowledgeWorkspace({
           {controller.showFirstRun ? (
             <section className="first-run-stage">
               <div className="first-run-stage__intro">
-                <p className="ui-kicker">{t(locale, "onboarding.kicker")}</p>
+                <p className="ui-kicker">{t(locale, "brand.philosophy")}</p>
                 <h2>{t(locale, "onboarding.title")}</h2>
                 <p>{t(locale, "onboarding.description")}</p>
                 <div className="first-run-stage__trust">
