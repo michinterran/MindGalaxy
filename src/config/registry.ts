@@ -55,8 +55,7 @@ export const ANALYSIS_QUEUE_REGISTRY = {
   // happen before a database attempt is recorded. Keep this budget larger
   // than the analysis attempt budget so transient infrastructure failures do
   // not strand an otherwise untouched processing job.
-  maxDeliveries: 10,
-  maxConcurrency: 2,
+  poisonDeliveryThreshold: 10,
 } as const;
 
 export const JOB_SQL_PARITY_MARKER = {

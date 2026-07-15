@@ -82,7 +82,8 @@ export function captureAnalysisRetry(
   if (
     terminalFailure ||
     (invalidMessage &&
-      metadata.deliveryCount >= ANALYSIS_QUEUE_REGISTRY.maxDeliveries)
+      metadata.deliveryCount >=
+        ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold)
   ) {
     logAnalysisEvent("error", {
       event: "queue.poison_message_acknowledged",
@@ -103,7 +104,10 @@ export function captureAnalysisRetry(
         Math.max(1, metadata.deliveryCount),
     );
 
-  if (metadata.deliveryCount >= ANALYSIS_QUEUE_REGISTRY.maxDeliveries) {
+  if (
+    metadata.deliveryCount >=
+    ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold
+  ) {
     logAnalysisEvent("error", {
       event: "queue.delivery_budget_exhausted_nonterminal",
       stage: "retry",

@@ -41,7 +41,7 @@ ANALYSIS_WORKER_SECRET=
 ## Runtime Surfaces
 
 - Capture: `POST /api/captures` stores raw source text and queues analysis.
-- Queue consumer: `POST /api/queues/analyze-capture` is a Vercel-internal private push consumer configured by `vercel.ts`; each message claims only its correlated processing job.
+- Queue consumer: `POST /api/queues/analyze-capture` is a Vercel-internal private push consumer configured by `vercel.json`; each message claims only its correlated processing job.
 - Worker: `POST /api/worker/analyze-captures` claims queued jobs, calls OpenAI, embeds content, and persists graph data through SQL RPCs.
 - Search: `POST /api/search` embeds the query, calls the hybrid SQL RPC, localizes blank capture titles, and generates bounded grounded answers.
 - Export: `POST /api/exports` renders the current workspace graph to HTML, PDF, or PPTX.
@@ -82,7 +82,7 @@ capture-to-map queue, and reduced-motion/WebGL checks printed by the validator.
 
 ## Vercel Queue Setup
 
-Production uses Vercel OIDC automatically; no Queue API token needs to be added to the deployed project. Deploy `vercel.ts` with the app so Vercel can create the private `capture-analysis` push trigger.
+Production uses Vercel OIDC automatically; no Queue API token needs to be added to the deployed project. Deploy the static `vercel.json` with the app so Vercel can create the private `capture-analysis` v2 push trigger. The static file intentionally follows the minimal schema in the official Queue documentation so Git and CLI deployments use the same validator-compatible configuration.
 
 For local Queue delivery, use the linked project credentials:
 

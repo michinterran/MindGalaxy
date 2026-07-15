@@ -183,7 +183,7 @@ describe("captureAnalysisRetry", () => {
           event.processingJobId,
           true,
         ),
-        metadata(ANALYSIS_QUEUE_REGISTRY.maxDeliveries),
+        metadata(1),
       ),
     ).toEqual({ acknowledge: true });
   });
@@ -196,7 +196,7 @@ describe("captureAnalysisRetry", () => {
           event.processingJobId,
           false,
         ),
-        metadata(ANALYSIS_QUEUE_REGISTRY.maxDeliveries),
+        metadata(ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold),
       ),
     ).toEqual({ afterSeconds: 300 });
   });
@@ -205,7 +205,14 @@ describe("captureAnalysisRetry", () => {
     expect(
       captureAnalysisRetry(
         new Error("ANALYSIS_QUEUE_MESSAGE_INVALID"),
-        metadata(ANALYSIS_QUEUE_REGISTRY.maxDeliveries),
+        metadata(ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold - 1),
+      ),
+    ).toEqual({ afterSeconds: 300 });
+
+    expect(
+      captureAnalysisRetry(
+        new Error("ANALYSIS_QUEUE_MESSAGE_INVALID"),
+        metadata(ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold),
       ),
     ).toEqual({ acknowledge: true });
   });
