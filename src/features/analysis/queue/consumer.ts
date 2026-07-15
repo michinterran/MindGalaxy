@@ -43,7 +43,7 @@ export async function consumeCaptureAnalysisEvent(
   const result = await runner(parsed.data.processingJobId, {
     expectedCaptureId: parsed.data.captureId,
     expectedWorkspaceId: parsed.data.workspaceId,
-    maxAttempts: JOB_REGISTRY.captureStructuring.maxAttempts,
+    maxAttempts: JOB_REGISTRY.captureStructuring.maxManualAttempts,
     rethrowFailures: true,
   });
 

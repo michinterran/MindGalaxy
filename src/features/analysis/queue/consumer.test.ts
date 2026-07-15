@@ -34,7 +34,7 @@ function metadata(deliveryCount: number): MessageMetadata {
 }
 
 describe("consumeCaptureAnalysisEvent", () => {
-  it("runs only the job correlated to the queue message", async () => {
+  it("runs only the correlated job with the manual retry safety ceiling", async () => {
     const runner = vi.fn().mockResolvedValue({
       claimed: 1,
       completed: 1,
@@ -51,7 +51,7 @@ describe("consumeCaptureAnalysisEvent", () => {
     expect(runner).toHaveBeenCalledWith(event.processingJobId, {
       expectedCaptureId: event.captureId,
       expectedWorkspaceId: event.workspaceId,
-      maxAttempts: JOB_REGISTRY.captureStructuring.maxAttempts,
+      maxAttempts: JOB_REGISTRY.captureStructuring.maxManualAttempts,
       rethrowFailures: true,
     });
   });
