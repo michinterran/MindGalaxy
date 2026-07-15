@@ -41,6 +41,7 @@ yarn-error.log*
 
 # local agent/workspace scratch files
 /tmp/
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
