@@ -7,7 +7,7 @@ export const captureAnalysisEventSchema = z.object({
   processingJobId: z.string().uuid(),
   captureId: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  createdAt: z.iso.datetime(),
+  createdAt: z.iso.datetime({ offset: true }),
 });
 
 export type CaptureAnalysisEvent = z.infer<typeof captureAnalysisEventSchema>;

@@ -69,6 +69,27 @@ describe("consumeCaptureAnalysisEvent", () => {
     expect(runner).not.toHaveBeenCalled();
   });
 
+  it("accepts the UTC offset timestamp returned by Supabase timestamptz", async () => {
+    const runner = vi.fn().mockResolvedValue({
+      claimed: 1,
+      completed: 1,
+      needsReview: 0,
+      failed: 0,
+      jobIds: [event.processingJobId],
+      errorCodes: [],
+      disposition: "processed",
+      status: "completed",
+    });
+
+    await consumeCaptureAnalysisEvent(
+      { ...event, createdAt: "2026-07-15T14:20:00+00:00" },
+      metadata(1),
+      runner,
+    );
+
+    expect(runner).toHaveBeenCalledOnce();
+  });
+
   it("retries when the exact job is queued, delayed, or already running", async () => {
     const runner = vi.fn().mockResolvedValue({
       claimed: 0,

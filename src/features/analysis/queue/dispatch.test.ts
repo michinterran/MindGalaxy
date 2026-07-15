@@ -50,4 +50,19 @@ describe("dispatchCaptureAnalysis", () => {
       expect.objectContaining({ idempotencyKey }),
     );
   });
+
+  it("canonicalizes Supabase timestamptz offsets before publishing", async () => {
+    const sender = vi.fn().mockResolvedValue({ messageId: "queue-message-2" });
+
+    await dispatchCaptureAnalysis(
+      { ...event, createdAt: "2026-07-15T14:20:00+00:00" },
+      sender,
+    );
+
+    expect(sender).toHaveBeenCalledWith(
+      ANALYSIS_QUEUE_REGISTRY.topic,
+      expect.objectContaining({ createdAt: "2026-07-15T14:20:00.000Z" }),
+      expect.any(Object),
+    );
+  });
 });

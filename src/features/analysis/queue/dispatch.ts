@@ -32,9 +32,13 @@ export async function dispatchCaptureAnalysis(
   const startedAt = performance.now();
 
   try {
+    const normalizedEvent = {
+      ...event,
+      createdAt: new Date(event.createdAt).toISOString(),
+    };
     const { messageId } = await queueSender(
       ANALYSIS_QUEUE_REGISTRY.topic,
-      event,
+      normalizedEvent,
       {
         idempotencyKey:
           options.idempotencyKey ??
