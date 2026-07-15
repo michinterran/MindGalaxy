@@ -1796,6 +1796,24 @@ textarea:focus-visible {
   gap: 6px;
 }
 
+.map-activity-banner__feedback {
+  grid-column: 2 / -1;
+  margin: 0;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.map-activity-banner__feedback--success {
+  color: var(--signal);
+}
+
+.map-activity-banner__feedback--error {
+  color: var(--danger);
+}
+
 .map-activity-banner__retry,
 .map-activity-banner__open {
   display: inline-flex;
@@ -3006,6 +3024,10 @@ textarea:focus-visible {
   .map-activity-banner__actions {
     grid-column: 3;
     grid-row: 1 / 3;
+  }
+
+  .map-activity-banner__feedback {
+    grid-column: 2 / -1;
   }
 
   .capture-layer__backdrop {

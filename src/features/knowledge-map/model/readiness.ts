@@ -25,6 +25,7 @@ export type RecentCapture = {
   processingJobId?: string | null;
   processingStatus?: string | null;
   processingCreatedAt?: string | null;
+  processingNextRunAt?: string | null;
   processingStartedAt?: string | null;
   processingUpdatedAt?: string | null;
   processingError?: string | null;
@@ -49,6 +50,18 @@ export function selectKnowledgeMapActivityCapture(
         : false,
     ) ?? null
   );
+}
+
+export function knowledgeMapReadinessStateKey(
+  recentCaptures: RecentCapture[],
+): string {
+  const capture = recentCaptures[0];
+
+  if (!capture) return "no-capture";
+
+  return capture.processingJobId
+    ? `job:${capture.processingJobId}`
+    : `capture:${capture.id}`;
 }
 
 export function deriveKnowledgeMapReadiness({

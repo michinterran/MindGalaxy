@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CaptureDetail } from "@/features/library/api/library-client";
 import type { UpdateCaptureTitleInput } from "@/features/library/model/schemas";
 import type { Database } from "@/types/database";
+import { canReconnectQueuedJob } from "@/features/analysis/queue/reconnect-policy";
 
 export type LibraryErrorCode =
   | "AUTH_REQUIRED"
@@ -13,6 +14,8 @@ export type LibraryErrorCode =
   | "CAPTURE_UPDATE_FAILED"
   | "LIBRARY_WRITE_FORBIDDEN"
   | "PROCESSING_JOB_NOT_FOUND"
+  | "PROCESSING_JOB_NOT_STALE"
+  | "PROCESSING_JOB_RECONNECT_NOT_ALLOWED"
   | "PROCESSING_JOB_RETRY_FAILED"
   | "PROCESSING_JOB_RETRY_NOT_ALLOWED"
   | "RETRY_LIMIT_REACHED"
@@ -99,7 +102,7 @@ export async function getCaptureDetailRecord(
     clients.service
       .from("processing_jobs")
       .select(
-        "id, status, error_message, updated_at, retry_count, max_attempts",
+        "id, status, error_message, next_run_at, updated_at, retry_count, max_attempts",
       )
       .eq("capture_id", capture.id)
       .eq("workspace_id", capture.workspace_id)
@@ -140,6 +143,7 @@ export async function getCaptureDetailRecord(
     processingJobId: job?.id ?? null,
     processingStatus: job?.status ?? null,
     processingError: job?.error_message ?? null,
+    processingNextRunAt: job?.next_run_at ?? null,
     processingUpdatedAt: job?.updated_at ?? null,
     retryCount: job?.retry_count ?? 0,
     maxAttempts: job?.max_attempts ?? 0,
@@ -229,6 +233,55 @@ export async function retryProcessingJobRecord(
       retryCount: data.retry_count,
       maxAttempts: data.max_attempts,
       nextRunAt: data.next_run_at,
+    },
+  };
+}
+
+export async function getReconnectableProcessingJobRecord(
+  clients: LibraryClients,
+  jobId: string,
+  nowMs: number = Date.now(),
+) {
+  const { data: job, error } = await clients.service
+    .from("processing_jobs")
+    .select(
+      "id, capture_id, workspace_id, status, retry_count, max_attempts, next_run_at, updated_at",
+    )
+    .eq("id", jobId)
+    .maybeSingle();
+
+  if (error) throw new LibraryError("PROCESSING_JOB_RECONNECT_NOT_ALLOWED", 500);
+  if (!job) throw new LibraryError("PROCESSING_JOB_NOT_FOUND", 404);
+
+  await requireCaptureRole(clients, job.capture_id, ["owner", "editor"]);
+
+  if (job.status !== "queued") {
+    throw new LibraryError("PROCESSING_JOB_RECONNECT_NOT_ALLOWED", 409);
+  }
+
+  if (
+    !canReconnectQueuedJob(
+      {
+        status: job.status,
+        updatedAt: job.updated_at,
+        nextRunAt: job.next_run_at,
+      },
+      nowMs,
+    )
+  ) {
+    throw new LibraryError("PROCESSING_JOB_NOT_STALE", 409);
+  }
+
+  return {
+    processingJob: {
+      id: job.id,
+      captureId: job.capture_id,
+      workspaceId: job.workspace_id,
+      status: job.status,
+      retryCount: job.retry_count,
+      maxAttempts: job.max_attempts,
+      nextRunAt: job.next_run_at,
+      updatedAt: job.updated_at,
     },
   };
 }

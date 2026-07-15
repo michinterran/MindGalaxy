@@ -81,6 +81,7 @@ export function KnowledgeMapClient({
   locale,
   onNodePositionChange,
   onNewCapture,
+  onReconnectCapture,
   onRetryCapture,
   onSelect,
   onSelectCapture,
@@ -97,6 +98,7 @@ export function KnowledgeMapClient({
     position: { x: number; y: number },
   ) => Promise<void>;
   onNewCapture?: () => void;
+  onReconnectCapture?: (jobId: string) => Promise<void>;
   onRetryCapture?: (jobId: string) => Promise<void>;
   onSelect: (id: string) => void;
   onSelectCapture?: (captureId: string) => void;
@@ -111,6 +113,7 @@ export function KnowledgeMapClient({
         locale={locale}
         onNewCapture={onNewCapture}
         onOpenCapture={onSelectCapture}
+        onReconnect={onReconnectCapture}
         onRetry={onRetryCapture}
         recentCaptures={recentCaptures}
       />
@@ -157,6 +160,7 @@ export function KnowledgeMapClient({
           key={activityCapture.id}
           locale={locale}
           onOpenCapture={onSelectCapture}
+          onReconnect={onReconnectCapture}
           onRetry={onRetryCapture}
         />
       ) : null}

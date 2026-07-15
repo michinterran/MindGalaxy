@@ -3,6 +3,7 @@ import {
   LibraryClientError,
   deleteCapture,
   getCaptureDetail,
+  reconnectProcessingJob,
   retryProcessingJob,
   updateCaptureTitle,
 } from "@/features/library/api/library-client";
@@ -45,7 +46,7 @@ describe("library client", () => {
     });
   });
 
-  it("uses explicit delete and retry endpoints", async () => {
+  it("uses explicit delete, retry, and reconnect endpoints", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -56,11 +57,21 @@ describe("library client", () => {
           JSON.stringify({ processingJob: { id: jobId, status: "queued" } }),
           { status: 202 },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            processingJob: { id: jobId, status: "queued" },
+            analysisDispatch: "queue",
+          }),
+          { status: 202 },
+        ),
       );
     vi.stubGlobal("fetch", fetchMock);
 
     await deleteCapture(captureId);
     await retryProcessingJob(jobId);
+    await reconnectProcessingJob(jobId);
     expect(fetchMock).toHaveBeenNthCalledWith(1, `/api/captures/${captureId}`, {
       method: "DELETE",
       headers: undefined,
@@ -68,6 +79,11 @@ describe("library client", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `/api/processing-jobs/${jobId}/retry`,
+      { method: "POST", headers: undefined },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      `/api/processing-jobs/${jobId}/reconnect`,
       { method: "POST", headers: undefined },
     );
   });

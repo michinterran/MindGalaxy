@@ -20,6 +20,7 @@ export type CaptureDetail = {
   processingJobId: string | null;
   processingStatus: ProcessingStatus | null;
   processingError: string | null;
+  processingNextRunAt: string | null;
   processingUpdatedAt: string | null;
   retryCount: number;
   maxAttempts: number;
@@ -37,6 +38,9 @@ export type RetryProcessingJobResponse = {
     maxAttempts: number;
     nextRunAt: string;
   };
+};
+export type ReconnectProcessingJobResponse = RetryProcessingJobResponse & {
+  analysisDispatch: "queue" | "fallback";
 };
 
 export class LibraryClientError extends Error {
@@ -105,6 +109,15 @@ export function retryProcessingJob(
 ): Promise<RetryProcessingJobResponse> {
   return libraryRequest(
     `/api/processing-jobs/${encodeURIComponent(jobId)}/retry`,
+    { method: "POST" },
+  );
+}
+
+export function reconnectProcessingJob(
+  jobId: string,
+): Promise<ReconnectProcessingJobResponse> {
+  return libraryRequest(
+    `/api/processing-jobs/${encodeURIComponent(jobId)}/reconnect`,
     { method: "POST" },
   );
 }

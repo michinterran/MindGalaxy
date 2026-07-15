@@ -55,6 +55,26 @@
   color: var(--danger);
 }
 
+.library-detail-panel__reconnect-status {
+  margin: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.library-detail-panel__reconnect-status--success {
+  border-color: color-mix(in srgb, var(--signal) 28%, var(--line-soft));
+  color: var(--signal);
+}
+
+.library-detail-panel__reconnect-status--error {
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--line-soft));
+  color: var(--danger);
+}
+
 .library-detail-panel__title-editor,
 .library-detail-panel__source {
   display: grid;

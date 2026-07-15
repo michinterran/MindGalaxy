@@ -26,6 +26,7 @@ import {
 import {
   deleteCapture,
   getCaptureDetail,
+  reconnectProcessingJob,
   retryProcessingJob,
   updateCaptureTitle,
 } from "@/features/library/api/library-client";
@@ -113,6 +114,7 @@ function optimisticRecentCapture(
     processingJobId: result.processingJob.id,
     processingStatus: result.processingJob.status,
     processingCreatedAt: result.processingJob.created_at,
+    processingNextRunAt: result.processingJob.created_at,
     processingUpdatedAt: result.processingJob.created_at,
     retryCount: 0,
   };
@@ -223,6 +225,10 @@ export function KnowledgeWorkspace({
         refreshWorkspace();
       },
       loadCapture: getCaptureDetail,
+      reconnectProcessing: async (jobId) => {
+        await reconnectProcessingJob(jobId);
+        refreshWorkspace();
+      },
       retryProcessing: async (jobId) => {
         await retryProcessingJob(jobId);
         refreshWorkspace();
@@ -338,6 +344,7 @@ export function KnowledgeWorkspace({
                 locale={locale}
                 onNodePositionChange={saveNodePosition}
                 onNewCapture={controller.openCapturePanel}
+                onReconnectCapture={libraryActions.reconnectProcessing}
                 onRetryCapture={libraryActions.retryProcessing}
                 onSelect={controller.selectNode}
                 onSelectCapture={controller.selectCapture}

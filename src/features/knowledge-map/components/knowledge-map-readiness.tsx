@@ -12,9 +12,15 @@ import {
 } from "lucide-react";
 import {
   deriveKnowledgeMapReadiness,
+  knowledgeMapReadinessStateKey,
   type KnowledgeMapReadinessKind,
   type RecentCapture,
 } from "@/features/knowledge-map/model/readiness";
+import { canReconnectQueuedJob } from "@/features/analysis/queue/reconnect-policy";
+import {
+  reconnectErrorMessageKey,
+  type ReconnectErrorMessageKey,
+} from "@/features/analysis/queue/reconnect-feedback";
 import { processingStatusLabel } from "@/lib/i18n/labels";
 import {
   formatDateTime,
@@ -54,6 +60,15 @@ const DESCRIPTION_KEYS = {
 
 type RetryState = "idle" | "loading" | "success" | "error";
 
+type KnowledgeMapReadinessProps = {
+  locale: Locale;
+  onNewCapture?: () => void;
+  onOpenCapture?: (captureId: string) => void;
+  onReconnect?: (jobId: string) => Promise<void>;
+  onRetry?: (jobId: string) => Promise<void>;
+  recentCaptures: RecentCapture[];
+};
+
 function useElapsedSeconds(since: string | null | undefined, enabled: boolean) {
   const sinceMs = useMemo(() => (since ? Date.parse(since) : Number.NaN), [since]);
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
@@ -87,18 +102,26 @@ function elapsedLabel(locale: Locale, elapsedSeconds: number) {
 }
 
 export function KnowledgeMapReadiness({
+  recentCaptures,
+  ...props
+}: KnowledgeMapReadinessProps) {
+  return (
+    <KnowledgeMapReadinessContent
+      key={knowledgeMapReadinessStateKey(recentCaptures)}
+      recentCaptures={recentCaptures}
+      {...props}
+    />
+  );
+}
+
+function KnowledgeMapReadinessContent({
   locale,
   onNewCapture,
   onOpenCapture,
+  onReconnect,
   onRetry,
   recentCaptures,
-}: {
-  locale: Locale;
-  onNewCapture?: () => void;
-  onOpenCapture?: (captureId: string) => void;
-  onRetry?: (jobId: string) => Promise<void>;
-  recentCaptures: RecentCapture[];
-}) {
+}: KnowledgeMapReadinessProps) {
   const capture = recentCaptures[0] ?? null;
   const readiness = deriveKnowledgeMapReadiness({
     hasCapture: Boolean(capture),
@@ -111,6 +134,16 @@ export function KnowledgeMapReadiness({
     isActive,
   );
   const [retryState, setRetryState] = useState<RetryState>("idle");
+  const [reconnectState, setReconnectState] = useState<RetryState>("idle");
+  const [reconnectErrorKey, setReconnectErrorKey] =
+    useState<ReconnectErrorMessageKey | null>(null);
+  const reconnectable = canReconnectQueuedJob(
+    {
+      status: capture?.processingStatus,
+      updatedAt: capture?.processingUpdatedAt,
+      nextRunAt: capture?.processingNextRunAt,
+    },
+  );
 
   async function retryAnalysis() {
     if (!capture?.processingJobId || !onRetry || retryState === "loading") return;
@@ -120,6 +153,19 @@ export function KnowledgeMapReadiness({
       setRetryState("success");
     } catch {
       setRetryState("error");
+    }
+  }
+
+  async function reconnectAnalysis() {
+    if (!capture?.processingJobId || !onReconnect || reconnectState === "loading") return;
+    setReconnectState("loading");
+    setReconnectErrorKey(null);
+    try {
+      await onReconnect(capture.processingJobId);
+      setReconnectState("success");
+    } catch (error) {
+      setReconnectErrorKey(reconnectErrorMessageKey(error));
+      setReconnectState("error");
     }
   }
 
@@ -223,6 +269,23 @@ export function KnowledgeMapReadiness({
           {visibleError ? <p className="map-readiness-error" role="alert">{visibleError}</p> : null}
 
           <div className="map-readiness-actions">
+            {readiness.kind === "queued" &&
+            reconnectable &&
+            reconnectState !== "success" &&
+            capture.processingJobId &&
+            onReconnect ? (
+              <button
+                className="primary-button"
+                disabled={reconnectState === "loading"}
+                onClick={reconnectAnalysis}
+                type="button"
+              >
+                <RefreshCcw className="size-4" />
+                {reconnectState === "loading"
+                  ? t(locale, "workspace.graph.readiness.reconnecting")
+                  : t(locale, "workspace.graph.readiness.reconnect")}
+              </button>
+            ) : null}
             {readiness.kind === "failed" && capture.processingJobId && onRetry ? (
               <button
                 className="primary-button"
@@ -258,6 +321,14 @@ export function KnowledgeMapReadiness({
               ? t(locale, "workspace.graph.readiness.retrySuccess")
               : retryState === "error"
                 ? t(locale, "workspace.graph.readiness.retryError")
+                : reconnectState === "success"
+                  ? t(locale, "workspace.graph.readiness.reconnectSuccess")
+                  : reconnectState === "error"
+                    ? t(
+                        locale,
+                        reconnectErrorKey ??
+                          "workspace.analysisReconnect.error.default",
+                      )
                 : isActive
                   ? t(locale, "workspace.graph.readiness.autoRefresh")
                   : ""}

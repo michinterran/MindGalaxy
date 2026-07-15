@@ -34,9 +34,14 @@ const capture = {
 describe("library DAL authorization", () => {
   let updateCaptureTitleRecord: typeof import("@/features/library/server/dal")["updateCaptureTitleRecord"];
   let deleteCaptureRecord: typeof import("@/features/library/server/dal")["deleteCaptureRecord"];
+  let getReconnectableProcessingJobRecord: typeof import("@/features/library/server/dal")["getReconnectableProcessingJobRecord"];
 
   beforeAll(async () => {
-    ({ updateCaptureTitleRecord, deleteCaptureRecord } = await import(
+    ({
+      updateCaptureTitleRecord,
+      deleteCaptureRecord,
+      getReconnectableProcessingJobRecord,
+    } = await import(
       "@/features/library/server/dal"
     ));
   });
@@ -80,5 +85,102 @@ describe("library DAL authorization", () => {
     ).rejects.toMatchObject({ code: "LIBRARY_WRITE_FORBIDDEN", status: 403 });
 
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("authorizes an editor and returns a stale queued job without mutating lifecycle state", async () => {
+    const rpc = vi.fn();
+    const job = {
+      id: "44444444-4444-4444-8444-444444444444",
+      capture_id: captureId,
+      workspace_id: workspaceId,
+      status: "queued",
+      retry_count: 0,
+      max_attempts: 3,
+      next_run_at: "2026-07-14T00:00:00.000Z",
+      updated_at: "2026-07-14T00:00:00.000Z",
+    };
+    const serviceFrom = vi
+      .fn()
+      .mockReturnValueOnce(query(job))
+      .mockReturnValueOnce(query(capture));
+    const actorFrom = vi.fn().mockReturnValue(query({ role: "editor" }));
+
+    await expect(
+      getReconnectableProcessingJobRecord(
+        {
+          actor: { from: actorFrom } as unknown as SupabaseClient<Database>,
+          service: {
+            from: serviceFrom,
+            rpc,
+          } as unknown as SupabaseClient<Database>,
+          userId,
+        },
+        job.id,
+        Date.parse("2026-07-14T01:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      processingJob: {
+        id: job.id,
+        status: "queued",
+        retryCount: 0,
+        maxAttempts: 3,
+      },
+    });
+
+    expect(rpc).not.toHaveBeenCalled();
+    expect(serviceFrom).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects viewers and fresh queued jobs", async () => {
+    const job = {
+      id: "44444444-4444-4444-8444-444444444444",
+      capture_id: captureId,
+      workspace_id: workspaceId,
+      status: "queued",
+      retry_count: 0,
+      max_attempts: 3,
+      next_run_at: "2026-07-14T00:00:00.000Z",
+      updated_at: "2026-07-14T00:00:00.000Z",
+    };
+    const viewerServiceFrom = vi
+      .fn()
+      .mockReturnValueOnce(query(job))
+      .mockReturnValueOnce(query(capture));
+
+    await expect(
+      getReconnectableProcessingJobRecord(
+        {
+          actor: {
+            from: vi.fn().mockReturnValue(query({ role: "viewer" })),
+          } as unknown as SupabaseClient<Database>,
+          service: {
+            from: viewerServiceFrom,
+          } as unknown as SupabaseClient<Database>,
+          userId,
+        },
+        job.id,
+        Date.parse("2026-07-14T01:00:00.000Z"),
+      ),
+    ).rejects.toMatchObject({ code: "LIBRARY_WRITE_FORBIDDEN", status: 403 });
+
+    const freshServiceFrom = vi
+      .fn()
+      .mockReturnValueOnce(query(job))
+      .mockReturnValueOnce(query(capture));
+    await expect(
+      getReconnectableProcessingJobRecord(
+        {
+          actor: {
+            from: vi.fn().mockReturnValue(query({ role: "owner" })),
+          } as unknown as SupabaseClient<Database>,
+          service: {
+            from: freshServiceFrom,
+          } as unknown as SupabaseClient<Database>,
+          userId,
+        },
+        job.id,
+        Date.parse("2026-07-14T00:05:00.000Z"),
+      ),
+    ).rejects.toMatchObject({ code: "PROCESSING_JOB_NOT_STALE", status: 409 });
   });
 });

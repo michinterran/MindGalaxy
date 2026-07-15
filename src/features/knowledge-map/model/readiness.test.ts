@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveKnowledgeMapReadiness,
+  knowledgeMapReadinessStateKey,
   selectKnowledgeMapActivityCapture,
   type RecentCapture,
 } from "@/features/knowledge-map/model/readiness";
@@ -98,5 +99,29 @@ describe("selectKnowledgeMapActivityCapture", () => {
         recentCapture("completed", "completed"),
       ]),
     ).toBeNull();
+  });
+});
+
+describe("knowledgeMapReadinessStateKey", () => {
+  it("changes when the active processing job changes", () => {
+    const capture = recentCapture("capture-1", "queued");
+
+    expect(
+      knowledgeMapReadinessStateKey([
+        { ...capture, processingJobId: "job-1" },
+      ]),
+    ).toBe("job:job-1");
+    expect(
+      knowledgeMapReadinessStateKey([
+        { ...capture, processingJobId: "job-2" },
+      ]),
+    ).toBe("job:job-2");
+  });
+
+  it("falls back to the capture identity before a job exists", () => {
+    expect(knowledgeMapReadinessStateKey([])).toBe("no-capture");
+    expect(
+      knowledgeMapReadinessStateKey([recentCapture("capture-1", null)]),
+    ).toBe("capture:capture-1");
   });
 });

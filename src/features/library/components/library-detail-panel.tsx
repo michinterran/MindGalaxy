@@ -12,10 +12,15 @@ import {
   X,
 } from "lucide-react";
 import {
+  canReconnectQueuedJob,
   canRetryCapture,
   getRetryableProcessingJobId,
   type LibraryCaptureDetail,
 } from "@/features/library/model/capture-detail";
+import {
+  reconnectErrorMessageKey,
+  type ReconnectErrorMessageKey,
+} from "@/features/analysis/queue/reconnect-feedback";
 import { captureSourceLabel, processingStatusLabel } from "@/lib/i18n/labels";
 import { formatDateTime, formatInteger, t, type Locale } from "@/lib/i18n";
 
@@ -24,26 +29,39 @@ type PanelStatus = "idle" | "loading" | "saving" | "success" | "error";
 export type LibraryDetailActions = {
   deleteCapture: (captureId: string) => Promise<void>;
   loadCapture: (captureId: string) => Promise<LibraryCaptureDetail>;
+  reconnectProcessing: (jobId: string) => Promise<void>;
   retryProcessing: (jobId: string) => Promise<void>;
   updateTitle: (captureId: string, title: string | null) => Promise<void>;
 };
 
-export function LibraryDetailPanel({
-  actions,
-  captureId,
-  locale,
-  onClose,
-}: {
+type LibraryDetailPanelProps = {
   actions: LibraryDetailActions;
   captureId: string;
   locale: Locale;
   onClose: () => void;
-}) {
+};
+
+export function LibraryDetailPanel(props: LibraryDetailPanelProps) {
+  return <LibraryDetailPanelContent key={props.captureId} {...props} />;
+}
+
+function LibraryDetailPanelContent({
+  actions,
+  captureId,
+  locale,
+  onClose,
+}: LibraryDetailPanelProps) {
   const [detail, setDetail] = useState<LibraryCaptureDetail | null>(null);
   const [status, setStatus] = useState<PanelStatus>("loading");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [reconnectStatus, setReconnectStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [reconnectErrorKey, setReconnectErrorKey] =
+    useState<ReconnectErrorMessageKey | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -72,6 +90,12 @@ export function LibraryDetailPanel({
     }
   }, [showDeleteConfirm]);
 
+  useEffect(() => {
+    if (detail?.processingStatus !== "queued") return;
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 10_000);
+    return () => window.clearInterval(intervalId);
+  }, [detail?.processingStatus]);
+
   async function saveTitle() {
     if (!detail) return;
     setStatus("saving");
@@ -96,6 +120,19 @@ export function LibraryDetailPanel({
       setStatus("success");
     } catch {
       setStatus("error");
+    }
+  }
+
+  async function reconnectProcessing() {
+    if (!detail?.processingJobId || reconnectStatus === "loading") return;
+    setReconnectStatus("loading");
+    setReconnectErrorKey(null);
+    try {
+      await actions.reconnectProcessing(detail.processingJobId);
+      setReconnectStatus("success");
+    } catch (error) {
+      setReconnectErrorKey(reconnectErrorMessageKey(error));
+      setReconnectStatus("error");
     }
   }
 
@@ -215,6 +252,44 @@ export function LibraryDetailPanel({
               <RotateCcw className="size-4" />
               {t(locale, "workspace.library.retry")}
             </button>
+          ) : null}
+
+          {detail.canEdit &&
+          detail.processingJobId &&
+          reconnectStatus !== "success" &&
+          canReconnectQueuedJob(
+            {
+              status: detail.processingStatus,
+              updatedAt: detail.processingUpdatedAt,
+              nextRunAt: detail.processingNextRunAt,
+            },
+            nowMs,
+          ) ? (
+            <button
+              className="secondary-button library-detail-panel__retry"
+              disabled={reconnectStatus === "loading" || status === "saving"}
+              onClick={reconnectProcessing}
+              type="button"
+            >
+              <RotateCcw className="size-4" />
+              {reconnectStatus === "loading"
+                ? t(locale, "workspace.library.reconnecting")
+                : t(locale, "workspace.library.reconnect")}
+            </button>
+          ) : null}
+
+          {reconnectStatus === "success" || reconnectStatus === "error" ? (
+            <p
+              className={`library-detail-panel__reconnect-status library-detail-panel__reconnect-status--${reconnectStatus}`}
+              role={reconnectStatus === "error" ? "alert" : "status"}
+            >
+              {t(
+                locale,
+                reconnectStatus === "success"
+                  ? "workspace.library.reconnectSuccess"
+                  : reconnectErrorKey ?? "workspace.analysisReconnect.error.default",
+              )}
+            </p>
           ) : null}
 
           <section className="library-detail-panel__source">

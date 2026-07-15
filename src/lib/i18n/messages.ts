@@ -154,6 +154,20 @@ const ko = {
     "workspace.graph.readiness.retrying": "분석을 다시 준비하는 중",
     "workspace.graph.readiness.retrySuccess": "분석을 다시 요청했습니다. 상태를 자동으로 확인합니다.",
     "workspace.graph.readiness.retryError": "분석을 다시 시작하지 못했습니다. 자료 상세에서 상태를 확인해 주세요.",
+    "workspace.graph.readiness.reconnect": "분석 다시 연결",
+    "workspace.graph.readiness.reconnecting": "분석 큐에 다시 연결하는 중",
+    "workspace.graph.readiness.reconnectSuccess":
+      "대기 중인 분석을 다시 연결했습니다. 상태를 자동으로 확인합니다.",
+    "workspace.graph.readiness.reconnectError":
+      "분석을 다시 연결하지 못했습니다. 잠시 후 자료 상세에서 다시 시도해 주세요.",
+    "workspace.analysisReconnect.error.notStale":
+      "아직 분석 대기 시간이 짧습니다. 잠시 후 다시 연결할 수 있습니다.",
+    "workspace.analysisReconnect.error.notAllowed":
+      "현재 작업 상태에서는 분석을 다시 연결할 수 없습니다. 상태를 새로고침해 주세요.",
+    "workspace.analysisReconnect.error.forbidden":
+      "이 작업공간의 소유자 또는 편집자만 분석을 다시 연결할 수 있습니다.",
+    "workspace.analysisReconnect.error.default":
+      "분석을 다시 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     "workspace.graph.readiness.activityAria": "현재 지식지도 분석 작업",
     "workspace.graph.readiness.activityKicker": "새 원문 노드",
     "workspace.graph.readiness.activityWorking": "기존 지도를 계속 사용할 수 있습니다",
@@ -219,6 +233,12 @@ const ko = {
     "workspace.library.editTitle": "제목 수정",
     "workspace.library.derivedNodes": "파생 노드 {count}개",
     "workspace.library.retry": "AI 분석 다시 시도",
+    "workspace.library.reconnect": "분석 다시 연결",
+    "workspace.library.reconnecting": "분석 큐에 다시 연결하는 중",
+    "workspace.library.reconnectSuccess":
+      "저장된 원문을 유지한 채 분석 요청만 다시 연결했습니다.",
+    "workspace.library.reconnectError":
+      "아직 재연결할 수 없거나 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     "workspace.library.sourceKicker": "원문",
     "workspace.library.sourceTitle": "저장된 전체 내용",
     "workspace.library.delete": "자료 삭제",
@@ -520,6 +540,20 @@ const en = {
     "workspace.graph.readiness.retrying": "Preparing analysis again",
     "workspace.graph.readiness.retrySuccess": "Analysis was requested again. Status will refresh automatically.",
     "workspace.graph.readiness.retryError": "Could not restart analysis. Check the source details for status.",
+    "workspace.graph.readiness.reconnect": "Reconnect analysis",
+    "workspace.graph.readiness.reconnecting": "Reconnecting the analysis queue",
+    "workspace.graph.readiness.reconnectSuccess":
+      "The waiting analysis was reconnected. Status updates will continue automatically.",
+    "workspace.graph.readiness.reconnectError":
+      "Could not reconnect analysis. Try again from material details shortly.",
+    "workspace.analysisReconnect.error.notStale":
+      "This analysis has not been waiting long enough. Reconnect will be available shortly.",
+    "workspace.analysisReconnect.error.notAllowed":
+      "Analysis cannot be reconnected from its current state. Refresh the status and try again.",
+    "workspace.analysisReconnect.error.forbidden":
+      "Only workspace owners and editors can reconnect analysis.",
+    "workspace.analysisReconnect.error.default":
+      "Could not reconnect analysis. Try again shortly.",
     "workspace.graph.readiness.activityAria": "Current knowledge map analysis",
     "workspace.graph.readiness.activityKicker": "New source node",
     "workspace.graph.readiness.activityWorking": "You can keep using the existing map",
@@ -585,6 +619,12 @@ const en = {
     "workspace.library.editTitle": "Edit title",
     "workspace.library.derivedNodes": "{count} derived nodes",
     "workspace.library.retry": "Retry AI analysis",
+    "workspace.library.reconnect": "Reconnect analysis",
+    "workspace.library.reconnecting": "Reconnecting the analysis queue",
+    "workspace.library.reconnectSuccess":
+      "The analysis request was reconnected without changing the saved source.",
+    "workspace.library.reconnectError":
+      "The job is not reconnectable yet or the request failed. Try again shortly.",
     "workspace.library.sourceKicker": "Source",
     "workspace.library.sourceTitle": "Full saved content",
     "workspace.library.delete": "Delete material",

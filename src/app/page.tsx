@@ -154,7 +154,7 @@ export default async function Home() {
     ? await supabase
         .from("processing_jobs")
         .select(
-          "id, capture_id, status, error_message, retry_count, max_attempts, started_at, created_at, updated_at",
+          "id, capture_id, status, error_message, retry_count, max_attempts, next_run_at, started_at, created_at, updated_at",
         )
         .eq("workspace_id", workspace.id)
         .in("capture_id", captureIds)
@@ -184,6 +184,7 @@ export default async function Home() {
           processingJobId: job?.id ?? null,
           processingStatus: job?.status ?? null,
           processingCreatedAt: job?.created_at ?? null,
+          processingNextRunAt: job?.next_run_at ?? null,
           processingStartedAt: job?.started_at ?? null,
           processingUpdatedAt: job?.updated_at ?? null,
           processingError: job?.error_message ?? null,

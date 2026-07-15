@@ -56,6 +56,9 @@ export const ANALYSIS_QUEUE_REGISTRY = {
   // than the analysis attempt budget so transient infrastructure failures do
   // not strand an otherwise untouched processing job.
   poisonDeliveryThreshold: 10,
+  // A queued job that has not changed for two full visibility windows can be
+  // safely re-published. Exact job claiming still prevents duplicate work.
+  reconnectAfterSeconds: 720,
 } as const;
 
 export const JOB_SQL_PARITY_MARKER = {
