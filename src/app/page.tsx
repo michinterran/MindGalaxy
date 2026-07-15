@@ -23,7 +23,13 @@ function AuthScreen({
             <ShieldCheck className="size-4" />
             {t(locale, "brand.philosophy")}
           </div>
-          <h1>{t(locale, "brand.slogan")}</h1>
+          <h1
+            aria-label={t(locale, "brand.slogan")}
+            className="semantic-headline"
+          >
+            <span aria-hidden="true">{t(locale, "brand.sloganLine1")}</span>
+            <span aria-hidden="true">{t(locale, "brand.sloganLine2")}</span>
+          </h1>
           <p className="auth-value-statement">
             {t(locale, "brand.description")}
           </p>
@@ -147,16 +153,18 @@ export default async function Home() {
   const { data: jobs } = captureIds.length
     ? await supabase
         .from("processing_jobs")
-        .select("capture_id, status, created_at")
+        .select(
+          "id, capture_id, status, error_message, retry_count, max_attempts, started_at, created_at, updated_at",
+        )
         .eq("workspace_id", workspace.id)
         .in("capture_id", captureIds)
         .order("created_at", { ascending: false })
     : { data: [] };
-  const latestJobStatusByCaptureId = new Map<string, string>();
+  const latestJobByCaptureId = new Map<string, NonNullable<typeof jobs>[number]>();
 
   for (const job of jobs ?? []) {
-    if (!latestJobStatusByCaptureId.has(job.capture_id)) {
-      latestJobStatusByCaptureId.set(job.capture_id, job.status);
+    if (!latestJobByCaptureId.has(job.capture_id)) {
+      latestJobByCaptureId.set(job.capture_id, job);
     }
   }
   const graph = await loadWorkspaceGraph(supabase, workspace.id, locale);
@@ -164,14 +172,25 @@ export default async function Home() {
   return (
     <KnowledgeWorkspace
       captureCount={count ?? 0}
-      recentCaptures={(captures ?? []).map((capture) => ({
-        id: capture.id,
-        title: capture.title,
-        rawTextLength: capture.raw_text.length,
-        sourceKind: capture.source_kind,
-        createdAt: capture.created_at,
-        processingStatus: latestJobStatusByCaptureId.get(capture.id) ?? null,
-      }))}
+      recentCaptures={(captures ?? []).map((capture) => {
+        const job = latestJobByCaptureId.get(capture.id);
+        return {
+          id: capture.id,
+          title: capture.title,
+          rawTextLength: capture.raw_text.length,
+          rawTextPreview: capture.raw_text.replace(/\s+/g, " ").trim().slice(0, 180),
+          sourceKind: capture.source_kind,
+          createdAt: capture.created_at,
+          processingJobId: job?.id ?? null,
+          processingStatus: job?.status ?? null,
+          processingCreatedAt: job?.created_at ?? null,
+          processingStartedAt: job?.started_at ?? null,
+          processingUpdatedAt: job?.updated_at ?? null,
+          processingError: job?.error_message ?? null,
+          retryCount: job?.retry_count ?? 0,
+          maxAttempts: job?.max_attempts ?? 0,
+        };
+      })}
       locale={locale}
       graph={graph}
       userEmail={user.email}

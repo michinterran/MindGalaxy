@@ -4,12 +4,17 @@
 @import "../styles/library-detail.css";
 
 :root {
+  /* WCJ C005 palette boundary: raw color values live only in this registry. */
   --background: #050607;
   --foreground: #f4f4f5;
   --muted: #a1a1aa;
   --muted-2: #71717a;
+  --muted-strong: #b8b8c0;
   --panel: #0b0e10;
   --panel-raised: #111519;
+  --canvas: #050506;
+  --white: #ffffff;
+  --black: #000000;
   --line: rgba(255, 255, 255, 0.1);
   --line-soft: rgba(255, 255, 255, 0.06);
   --signal: #d6ff6b;
@@ -18,7 +23,22 @@
   --evidence: #67e8f9;
   --context: #fde68a;
   --danger: #fda4af;
+  --warning: #facc15;
   --observatory-glass: rgba(9, 12, 14, 0.76);
+  --surface-observatory: #090c0e;
+  --surface-ink-1: #07090a;
+  --surface-ink-2: #080b0d;
+  --surface-ink-3: #080a0c;
+  --surface-ink-4: #060809;
+  --surface-ink-5: #0a0d10;
+  --surface-ink-6: #090b0d;
+  --surface-ink-7: #121216;
+  --surface-ink-8: #070a0b;
+  --surface-panel-deep: #0b0b0d;
+  --surface-panel-calm: #08080a;
+  --surface-panel-green: #0f120d;
+  --surface-panel-neutral: #0a0c0e;
+  --surface-panel-strong: #0c0f12;
 }
 
 @theme inline {
@@ -56,15 +76,48 @@ textarea {
 
 button {
   cursor: pointer;
+  white-space: nowrap;
 }
 
 button:disabled {
   cursor: not-allowed;
 }
 
+/* Korean typography contract: editorial copy keeps semantic phrases together,
+   while user-generated titles are bounded independently below. */
+.semantic-headline {
+  text-wrap: balance;
+}
+
+.semantic-headline > span {
+  display: block;
+}
+
+:lang(ko) .semantic-headline,
+:lang(ko) .auth-value-statement,
+:lang(ko) .auth-card p,
+:lang(ko) .first-run-stage__intro > p,
+:lang(ko) .capture-panel__description {
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.auth-value-statement,
+.auth-card p,
+.first-run-stage__intro > p,
+.capture-panel__description {
+  text-wrap: pretty;
+}
+
+button,
+.toolbar-nav,
+.map-readiness-status {
+  text-wrap: nowrap;
+}
+
 ::selection {
-  background: rgba(214, 255, 107, 0.25);
-  color: #ffffff;
+  background: color-mix(in srgb, var(--signal) 25%, transparent);
+  color: var(--white);
 }
 
 .mindgalaxy-app {
@@ -72,10 +125,10 @@ button:disabled {
   min-height: 100vh;
   grid-template-columns: minmax(0, 1fr);
   background:
-    linear-gradient(90deg, rgba(214, 255, 107, 0.035) 1px, transparent 1px),
-    radial-gradient(circle at 20% 12%, rgba(125, 211, 252, 0.075), transparent 28%),
-    radial-gradient(circle at 82% 0%, rgba(214, 255, 107, 0.05), transparent 24%),
-    #050506;
+    linear-gradient(90deg, color-mix(in srgb, var(--signal) 3.5%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 20% 12%, color-mix(in srgb, var(--source) 7.5%, transparent), transparent 28%),
+    radial-gradient(circle at 82% 0%, color-mix(in srgb, var(--signal) 5%, transparent), transparent 24%),
+    var(--canvas);
   background-size: 72px 72px, auto, auto, auto;
 }
 
@@ -92,7 +145,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid rgba(214, 255, 107, 0.7);
+  outline: 2px solid color-mix(in srgb, var(--signal) 70%, transparent);
   outline-offset: 2px;
 }
 
@@ -100,9 +153,9 @@ textarea:focus-visible {
 .center-screen {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 22% 12%, rgba(125, 211, 252, 0.09), transparent 28%),
-    radial-gradient(circle at 80% 5%, rgba(214, 255, 107, 0.06), transparent 24%),
-    #050506;
+    radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--source) 9%, transparent), transparent 28%),
+    radial-gradient(circle at 80% 5%, color-mix(in srgb, var(--signal) 6%, transparent), transparent 24%),
+    var(--canvas);
   color: var(--foreground);
 }
 
@@ -120,10 +173,10 @@ textarea:focus-visible {
   z-index: -1;
   inset: 0;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--white) 1.8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--white) 1.8%, transparent) 1px, transparent 1px);
   background-size: 64px 64px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 82%);
+  mask-image: linear-gradient(to bottom, color-mix(in srgb, var(--black) 72%, transparent), transparent 82%);
   content: "";
   pointer-events: none;
 }
@@ -158,7 +211,7 @@ textarea:focus-visible {
 .auth-copy .auth-value-statement {
   max-width: 650px;
   margin: 26px 0 0;
-  color: #b8b8c0;
+  color: var(--muted-strong);
   font-size: 16px;
   line-height: 1.8;
   text-wrap: pretty;
@@ -168,9 +221,9 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(214, 255, 107, 0.22);
+  border: 1px solid color-mix(in srgb, var(--signal) 22%, transparent);
   border-radius: 999px;
-  background: rgba(214, 255, 107, 0.055);
+  background: color-mix(in srgb, var(--signal) 5.5%, transparent);
   padding: 9px 12px;
   color: var(--signal);
   font-size: 12px;
@@ -185,7 +238,7 @@ textarea:focus-visible {
   margin-top: 32px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
   padding: 10px 12px;
   color: var(--muted);
   font-size: 13px;
@@ -207,8 +260,8 @@ textarea:focus-visible {
 .system-card {
   border: 1px solid var(--line-soft);
   border-radius: 16px;
-  background: rgba(11, 11, 13, 0.9);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  background: color-mix(in srgb, var(--surface-panel-deep) 90%, transparent);
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--black) 38%, transparent);
 }
 
 .auth-card {
@@ -216,8 +269,8 @@ textarea:focus-visible {
   gap: 18px;
   padding: 24px;
   box-shadow:
-    0 32px 90px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    0 32px 90px color-mix(in srgb, var(--black) 48%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 4.5%, transparent);
 }
 
 .auth-card h2,
@@ -233,9 +286,9 @@ textarea:focus-visible {
 }
 
 .auth-warning {
-  border: 1px solid rgba(253, 164, 175, 0.25);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
   border-radius: 8px;
-  background: rgba(253, 164, 175, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
   padding: 12px;
   color: var(--danger);
   font-size: 13px;
@@ -251,7 +304,7 @@ textarea:focus-visible {
   border: 0;
   border-radius: 8px;
   background: var(--foreground);
-  color: #050506;
+  color: var(--canvas);
   font-size: 14px;
   font-weight: 750;
 }
@@ -262,7 +315,7 @@ textarea:focus-visible {
   height: 20px;
   place-items: center;
   border-radius: 999px;
-  background: #050506;
+  background: var(--canvas);
   color: var(--foreground);
   font-size: 12px;
   font-weight: 800;
@@ -315,7 +368,7 @@ textarea:focus-visible {
   height: 100vh;
   flex-direction: column;
   border-right: 1px solid var(--line-soft);
-  background: rgba(8, 8, 10, 0.92);
+  background: color-mix(in srgb, var(--surface-panel-calm) 92%, transparent);
   padding: 16px 14px;
 }
 
@@ -334,7 +387,7 @@ textarea:focus-visible {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--signal);
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--white) 5%, transparent);
 }
 
 .brand-lockup p,
@@ -375,7 +428,7 @@ textarea:focus-visible {
   margin-top: 18px;
   width: 100%;
   background: var(--signal);
-  color: #050506;
+  color: var(--canvas);
 }
 
 .sidebar-nav {
@@ -411,7 +464,7 @@ textarea:focus-visible {
 .sidebar-nav button.is-active,
 .recent-list button:hover,
 .recent-list button.is-selected {
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
   color: var(--foreground);
 }
 
@@ -499,7 +552,7 @@ textarea:focus-visible {
   max-width: 460px;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: rgba(7, 9, 10, 0.86);
+  background: color-mix(in srgb, var(--surface-ink-1) 86%, transparent);
   padding: 24px;
   text-align: center;
 }
@@ -509,17 +562,17 @@ textarea:focus-visible {
   position: sticky;
   top: 0;
   z-index: 20;
-  grid-template-columns: minmax(190px, 240px) auto minmax(320px, 1fr) auto auto;
+  grid-template-columns: minmax(190px, 240px) auto auto minmax(420px, 1fr) auto;
   gap: 10px;
   align-items: center;
   min-height: 64px;
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border: 1px solid color-mix(in srgb, var(--white) 7.5%, transparent);
   border-radius: 12px;
-  background: rgba(7, 9, 10, 0.86);
+  background: color-mix(in srgb, var(--surface-ink-1) 86%, transparent);
   padding: 10px;
   box-shadow:
-    0 18px 42px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    0 18px 42px color-mix(in srgb, var(--black) 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 3.5%, transparent);
   backdrop-filter: blur(20px);
 }
 
@@ -547,9 +600,22 @@ textarea:focus-visible {
   min-height: 42px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 0 12px;
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
+  width: min(640px, 100%);
+  min-width: min(520px, 100%);
+  justify-self: end;
+  padding: 4px 4px 4px 12px;
   color: var(--muted);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.toolbar-search:focus-within {
+  border-color: color-mix(in srgb, var(--source) 38%, transparent);
+  background: color-mix(in srgb, var(--source) 4.5%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--source) 5.5%, transparent);
 }
 
 .toolbar-capture-action {
@@ -561,14 +627,14 @@ textarea:focus-visible {
   border: 0;
   border-radius: 9px;
   background: var(--signal);
-  color: #050506;
+  color: var(--canvas);
   padding: 0 14px;
   font-size: 14px;
   font-weight: 790;
   white-space: nowrap;
   box-shadow:
-    0 12px 26px rgba(214, 255, 107, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    0 12px 26px color-mix(in srgb, var(--signal) 16%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 28%, transparent);
 }
 
 .toolbar-capture-action:hover {
@@ -607,7 +673,7 @@ textarea:focus-visible {
 
 .toolbar-nav button:hover,
 .toolbar-nav button.is-active {
-  background: rgba(255, 255, 255, 0.075);
+  background: color-mix(in srgb, var(--white) 7.5%, transparent);
   color: var(--foreground);
 }
 
@@ -618,15 +684,15 @@ textarea:focus-visible {
 }
 
 .toolbar-search--loading {
-  border-color: rgba(125, 211, 252, 0.42);
+  border-color: color-mix(in srgb, var(--source) 42%, transparent);
 }
 
 .toolbar-search--success {
-  border-color: rgba(214, 255, 107, 0.32);
+  border-color: color-mix(in srgb, var(--signal) 32%, transparent);
 }
 
 .toolbar-search--error {
-  border-color: rgba(253, 164, 175, 0.38);
+  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
 }
 
 .toolbar-search input {
@@ -649,6 +715,40 @@ textarea:focus-visible {
   color: var(--muted-2);
   font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   font-size: 10px;
+  white-space: nowrap;
+}
+
+.toolbar-search__submit {
+  display: inline-flex;
+  min-height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--signal) 18%, transparent);
+  border-radius: 7px;
+  background: var(--signal);
+  padding: 0 11px;
+  color: var(--canvas);
+  font-size: 12px;
+  font-weight: 780;
+  white-space: nowrap;
+  transition:
+    filter 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.toolbar-search__submit:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.toolbar-search__submit:disabled {
+  border-color: color-mix(in srgb, var(--white) 7%, transparent);
+  background: color-mix(in srgb, var(--white) 6%, transparent);
+  color: var(--muted-2);
+  opacity: 0.8;
 }
 
 .view-switch {
@@ -660,7 +760,7 @@ textarea:focus-visible {
 .view-switch {
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
   padding: 4px;
 }
 
@@ -690,7 +790,7 @@ textarea:focus-visible {
 
 .view-switch button.is-active {
   background: var(--foreground);
-  color: #050506;
+  color: var(--canvas);
 }
 
 .toolbar-account {
@@ -704,12 +804,12 @@ textarea:focus-visible {
   width: 44px;
   height: 44px;
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
 }
 
 .icon-button:hover,
 .ghost-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--white) 8%, transparent);
   color: var(--foreground);
 }
 
@@ -742,7 +842,7 @@ textarea:focus-visible {
   gap: 12px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(9, 12, 14, 0.78);
+  background: color-mix(in srgb, var(--surface-observatory) 78%, transparent);
   padding: 5px 6px;
 }
 
@@ -771,12 +871,12 @@ textarea:focus-visible {
 .knowledge-view-switch button:hover,
 .knowledge-view-switch button.is-active,
 .knowledge-export-action:hover {
-  background: rgba(255, 255, 255, 0.075);
+  background: color-mix(in srgb, var(--white) 7.5%, transparent);
   color: var(--foreground);
 }
 
 .knowledge-view-switch em {
-  border: 1px solid rgba(214, 255, 107, 0.22);
+  border: 1px solid color-mix(in srgb, var(--signal) 22%, transparent);
   border-radius: 999px;
   color: var(--signal);
   padding: 2px 5px;
@@ -788,6 +888,28 @@ textarea:focus-visible {
 .knowledge-stage > .canvas-stage,
 .knowledge-stage > .galaxy-stage {
   min-height: calc(100vh - 158px);
+}
+
+.knowledge-stage > .knowledge-map-live-stage {
+  min-height: calc(100vh - 158px);
+}
+
+.knowledge-map-live-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.knowledge-map-live-stage--active {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.knowledge-map-live-stage > .canvas-stage,
+.knowledge-map-live-stage > .galaxy-stage {
+  min-width: 0;
+  min-height: 0;
 }
 
 .knowledge-stage > .list-stage {
@@ -802,9 +924,9 @@ textarea:focus-visible {
   border: 1px solid var(--line-soft);
   border-radius: 12px;
   background:
-    radial-gradient(circle at 50% 32%, rgba(125, 211, 252, 0.08), transparent 30%),
-    radial-gradient(circle at 68% 64%, rgba(214, 255, 107, 0.045), transparent 28%),
-    rgba(7, 9, 10, 0.82);
+    radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--source) 8%, transparent), transparent 30%),
+    radial-gradient(circle at 68% 64%, color-mix(in srgb, var(--signal) 4.5%, transparent), transparent 28%),
+    color-mix(in srgb, var(--surface-ink-1) 82%, transparent);
   padding: clamp(24px, 5vw, 64px);
 }
 
@@ -819,6 +941,8 @@ textarea:focus-visible {
   font-size: clamp(30px, 4vw, 52px);
   line-height: 1.04;
   letter-spacing: -0.045em;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .first-run-stage__intro > p:not(.ui-kicker) {
@@ -840,7 +964,7 @@ textarea:focus-visible {
 .first-run-stage__trust span {
   border: 1px solid var(--line-soft);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
   padding: 7px 11px;
   color: var(--muted);
   font-size: 12px;
@@ -862,16 +986,16 @@ textarea:focus-visible {
   display: grid;
   gap: 14px;
   overflow: hidden;
-  border: 1px solid rgba(125, 211, 252, 0.12);
+  border: 1px solid color-mix(in srgb, var(--source) 12%, transparent);
   border-radius: 10px;
   background:
-    linear-gradient(135deg, rgba(125, 211, 252, 0.075), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
-    rgba(8, 10, 12, 0.92);
+    linear-gradient(135deg, color-mix(in srgb, var(--source) 7.5%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--white) 3.5%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface-ink-3) 92%, transparent);
   padding: 16px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 22px 55px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 color-mix(in srgb, var(--white) 4.5%, transparent),
+    0 22px 55px color-mix(in srgb, var(--black) 22%, transparent);
 }
 
 .capture-panel::before {
@@ -879,11 +1003,11 @@ textarea:focus-visible {
   inset: 0;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+    linear-gradient(90deg, color-mix(in srgb, var(--white) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--white) 2.6%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
   content: "";
-  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.42), transparent 72%);
+  mask-image: linear-gradient(90deg, color-mix(in srgb, var(--black) 42%, transparent), transparent 72%);
   pointer-events: none;
 }
 
@@ -911,6 +1035,8 @@ textarea:focus-visible {
   max-width: 430px;
   font-size: 30px;
   line-height: 1.08;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .capture-panel__description {
@@ -936,7 +1062,7 @@ textarea:focus-visible {
   right: 16px;
   left: 16px;
   height: 1px;
-  background: linear-gradient(90deg, rgba(214, 255, 107, 0.38), rgba(125, 211, 252, 0.18), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--signal) 38%, transparent), color-mix(in srgb, var(--source) 18%, transparent), transparent);
   content: "";
   opacity: 0.52;
 }
@@ -947,13 +1073,13 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border: 1px solid color-mix(in srgb, var(--white) 7.5%, transparent);
   border-radius: 999px;
-  background: rgba(5, 5, 6, 0.78);
+  background: color-mix(in srgb, var(--canvas) 78%, transparent);
   padding: 6px 10px 6px 6px;
   color: var(--muted);
   font-size: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 3.5%, transparent);
 }
 
 .capture-panel__flow em {
@@ -961,9 +1087,9 @@ textarea:focus-visible {
   width: 22px;
   height: 22px;
   place-items: center;
-  border: 1px solid rgba(214, 255, 107, 0.32);
+  border: 1px solid color-mix(in srgb, var(--signal) 32%, transparent);
   border-radius: 999px;
-  background: rgba(214, 255, 107, 0.12);
+  background: color-mix(in srgb, var(--signal) 12%, transparent);
   color: var(--signal);
   font-style: normal;
   font-weight: 760;
@@ -977,7 +1103,7 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid rgba(125, 211, 252, 0.2);
+  border: 1px solid color-mix(in srgb, var(--source) 20%, transparent);
   border-radius: 999px;
   padding: 8px 10px;
   color: var(--source);
@@ -1007,10 +1133,10 @@ textarea:focus-visible {
 .field-label input,
 .field-label textarea {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid color-mix(in srgb, var(--white) 9%, transparent);
   border-radius: 8px;
   outline: 0;
-  background: rgba(0, 0, 0, 0.52);
+  background: color-mix(in srgb, var(--black) 52%, transparent);
   color: var(--foreground);
   font-size: 14px;
   line-height: 1.55;
@@ -1037,9 +1163,9 @@ textarea:focus-visible {
 
 .field-label input:focus,
 .field-label textarea:focus {
-  border-color: rgba(125, 211, 252, 0.58);
-  background: rgba(0, 0, 0, 0.68);
-  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.12);
+  border-color: color-mix(in srgb, var(--source) 58%, transparent);
+  background: color-mix(in srgb, var(--black) 68%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--source) 12%, transparent);
 }
 
 .field-label input::placeholder,
@@ -1066,9 +1192,9 @@ textarea:focus-visible {
   align-items: center;
   gap: 8px;
   min-height: 34px;
-  border: 1px solid rgba(125, 211, 252, 0.16);
+  border: 1px solid color-mix(in srgb, var(--source) 16%, transparent);
   border-radius: 8px;
-  background: rgba(125, 211, 252, 0.045);
+  background: color-mix(in srgb, var(--source) 4.5%, transparent);
   padding: 0 10px;
   color: var(--source);
   font-size: 12px;
@@ -1076,19 +1202,19 @@ textarea:focus-visible {
 
 .status-line--saving,
 .status-line--idle {
-  border-color: rgba(125, 211, 252, 0.2);
+  border-color: color-mix(in srgb, var(--source) 20%, transparent);
   color: var(--source);
 }
 
 .status-line--success {
-  border-color: rgba(214, 255, 107, 0.25);
-  background: rgba(214, 255, 107, 0.07);
+  border-color: color-mix(in srgb, var(--signal) 25%, transparent);
+  background: color-mix(in srgb, var(--signal) 7%, transparent);
   color: var(--signal);
 }
 
 .status-line--error {
-  border-color: rgba(253, 164, 175, 0.25);
-  background: rgba(253, 164, 175, 0.07);
+  border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
   color: var(--danger);
 }
 
@@ -1101,14 +1227,14 @@ textarea:focus-visible {
 .capture-panel__success-actions .ghost-button {
   min-height: 34px;
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
   padding: 0 10px;
 }
 
 .primary-button {
   width: 100%;
   background: var(--signal);
-  color: #050506;
+  color: var(--canvas);
   transition:
     filter 160ms ease,
     transform 160ms ease;
@@ -1121,22 +1247,22 @@ textarea:focus-visible {
 
 .primary-button:disabled,
 .primary-button--empty {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(244, 244, 245, 0.42);
+  border-color: color-mix(in srgb, var(--white) 8%, transparent);
+  background: color-mix(in srgb, var(--white) 7%, transparent);
+  color: color-mix(in srgb, var(--foreground) 42%, transparent);
   cursor: not-allowed;
   filter: none;
 }
 
 .primary-button--ready {
   box-shadow:
-    0 12px 28px rgba(214, 255, 107, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    0 12px 28px color-mix(in srgb, var(--signal) 16%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 32%, transparent);
 }
 
 .secondary-button {
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--white) 4%, transparent);
   color: var(--foreground);
   padding: 0 12px;
 }
@@ -1150,13 +1276,561 @@ textarea:focus-visible {
   border: 1px solid var(--line-soft);
   border-radius: 10px;
   background:
-    radial-gradient(circle at 50% 45%, rgba(125, 211, 252, 0.055), transparent 32%),
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--source) 5.5%, transparent), transparent 32%),
     var(--observatory-glass);
 }
 
 .canvas-stage {
   display: flex;
   flex-direction: column;
+}
+
+.map-readiness-stage {
+  background:
+    linear-gradient(color-mix(in srgb, var(--white) 3.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--white) 3.5%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 35% 48%, color-mix(in srgb, var(--source) 9%, transparent), transparent 25%),
+    radial-gradient(circle at 67% 46%, color-mix(in srgb, var(--signal) 5.5%, transparent), transparent 30%),
+    color-mix(in srgb, var(--surface-ink-4) 92%, transparent);
+  background-size: 42px 42px, 42px 42px, auto, auto, auto;
+}
+
+.map-readiness-header {
+  align-items: flex-start;
+}
+
+.map-readiness-status {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--ai) 20%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ai) 7%, transparent);
+  padding: 6px 10px;
+  color: var(--ai);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.map-readiness-status small {
+  border-left: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
+  padding-left: 7px;
+  color: var(--muted);
+}
+
+.map-readiness-status--queued svg,
+.map-readiness-status--running svg,
+.map-readiness-pipeline li.is-current svg {
+  animation: map-readiness-spin 1.2s linear infinite;
+}
+
+.map-readiness-status--failed {
+  border-color: color-mix(in srgb, var(--danger) 22%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+  color: var(--danger);
+}
+
+.map-readiness-canvas {
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(260px, 0.88fr) minmax(72px, 0.22fr) minmax(360px, 1.12fr);
+  gap: clamp(12px, 2vw, 32px);
+  align-items: center;
+  width: min(1100px, calc(100% - 56px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+}
+
+.provisional-source-node {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--source) 34%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--source) 8.5%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface-ink-5) 94%, transparent);
+  padding: 20px;
+  box-shadow:
+    0 28px 80px color-mix(in srgb, var(--black) 38%, transparent),
+    0 0 46px color-mix(in srgb, var(--source) 7%, transparent),
+    inset 3px 0 0 color-mix(in srgb, var(--source) 86%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 5.5%, transparent);
+}
+
+.provisional-source-node::after {
+  position: absolute;
+  top: -56px;
+  right: -40px;
+  width: 120px;
+  height: 120px;
+  border: 1px solid color-mix(in srgb, var(--source) 8%, transparent);
+  border-radius: 50%;
+  content: "";
+}
+
+.provisional-source-node__topline,
+.provisional-source-node footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.provisional-source-node__topline span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--source);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.provisional-source-node__topline em {
+  border: 1px solid color-mix(in srgb, var(--signal) 16%, transparent);
+  border-radius: 999px;
+  color: var(--signal);
+  padding: 4px 7px;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.provisional-source-node h3 {
+  margin: 22px 0 0;
+  font-size: clamp(19px, 2vw, 26px);
+  line-height: 1.22;
+}
+
+.provisional-source-node > p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.provisional-source-node footer {
+  margin-top: 24px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+  color: var(--muted-2);
+  font-size: 10px;
+}
+
+.map-readiness-connector {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.map-readiness-connector span {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--source) 70%, transparent), color-mix(in srgb, var(--ai) 22%, transparent));
+}
+
+.map-readiness-connector i {
+  position: absolute;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ai);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ai) 80%, transparent);
+  animation: map-readiness-pulse 1.7s ease-in-out infinite;
+}
+
+.map-readiness-pipeline {
+  border: 1px solid color-mix(in srgb, var(--white) 9.5%, transparent);
+  border-radius: 18px;
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--ai) 5.5%, transparent), transparent 46%),
+    color-mix(in srgb, var(--surface-ink-6) 94%, transparent);
+  padding: clamp(18px, 2.2vw, 26px);
+  box-shadow:
+    0 30px 90px color-mix(in srgb, var(--black) 36%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 4.5%, transparent);
+}
+
+.map-readiness-pipeline__heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.map-readiness-pipeline__heading > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--signal) 18%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--signal) 6%, transparent);
+  color: var(--signal);
+}
+
+.map-readiness-pipeline__heading p,
+.map-readiness-pipeline__heading h3 {
+  margin: 0;
+}
+
+.map-readiness-pipeline__heading p {
+  color: var(--muted-2);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.map-readiness-pipeline__heading h3 {
+  margin-top: 4px;
+  font-size: 16px;
+}
+
+.map-readiness-pipeline ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-readiness-pipeline li {
+  position: relative;
+  min-width: 0;
+  color: color-mix(in srgb, var(--foreground) 34%, transparent);
+  font-size: 10px;
+  text-align: center;
+}
+
+.map-readiness-pipeline li::before {
+  position: absolute;
+  z-index: 0;
+  top: 12px;
+  right: 50%;
+  width: 100%;
+  height: 1px;
+  background: color-mix(in srgb, var(--white) 8%, transparent);
+  content: "";
+}
+
+.map-readiness-pipeline li:first-child::before {
+  display: none;
+}
+
+.map-readiness-pipeline li > span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  margin: 0 auto;
+  border: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
+  border-radius: 50%;
+  background: var(--surface-panel-neutral);
+  font-size: 9px;
+}
+
+.map-readiness-pipeline li > p {
+  margin: 9px auto 0;
+  line-height: 1.4;
+}
+
+.map-readiness-pipeline li > em {
+  display: block;
+  margin-top: 4px;
+  color: var(--signal);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.map-readiness-pipeline li.is-complete,
+.map-readiness-pipeline li.is-current {
+  color: var(--foreground);
+}
+
+.map-readiness-pipeline li.is-complete::before,
+.map-readiness-pipeline li.is-current::before {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--signal) 52%, transparent), color-mix(in srgb, var(--ai) 35%, transparent));
+}
+
+.map-readiness-pipeline li.is-complete > span {
+  border-color: color-mix(in srgb, var(--signal) 42%, transparent);
+  background: color-mix(in srgb, var(--signal) 12%, transparent);
+  color: var(--signal);
+}
+
+.map-readiness-pipeline li.is-current > span {
+  border-color: color-mix(in srgb, var(--ai) 56%, transparent);
+  color: var(--ai);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--ai) 16%, transparent);
+}
+
+.map-readiness-pipeline li.is-failed > span,
+.map-readiness-pipeline li.is-failed > em {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger);
+}
+
+.map-readiness-error {
+  margin: 20px 0 0;
+  border: 1px solid color-mix(in srgb, var(--danger) 16%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 5.5%, transparent);
+  padding: 9px 10px;
+  color: color-mix(in srgb, var(--danger) 88%, transparent);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 10px;
+}
+
+.map-readiness-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.map-readiness-actions button,
+.map-readiness-empty button {
+  display: inline-flex;
+  width: auto;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 0 14px;
+}
+
+.map-readiness-live {
+  min-height: 17px;
+  margin: 12px 0 0;
+  color: var(--muted-2);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.map-readiness-live--success {
+  color: var(--signal);
+}
+
+.map-readiness-live--error {
+  color: var(--danger);
+}
+
+.map-readiness-stage--empty {
+  display: grid;
+  place-items: center;
+}
+
+.map-readiness-empty {
+  width: min(480px, calc(100% - 40px));
+  text-align: center;
+}
+
+.map-readiness-empty > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  margin: 0 auto 16px;
+  border: 1px solid color-mix(in srgb, var(--source) 22%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--source) 6.5%, transparent);
+  color: var(--source);
+}
+
+.map-readiness-empty h2 {
+  margin: 8px 0 0;
+  font-size: clamp(24px, 3vw, 36px);
+}
+
+.map-readiness-empty > p:not(.ui-kicker) {
+  margin: 12px auto 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.map-readiness-empty button {
+  margin: 22px auto 0;
+}
+
+.map-activity-banner {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 38px minmax(180px, 1fr) minmax(180px, auto) auto;
+  gap: 12px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--source) 20%, transparent);
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--source) 7.5%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface-ink-2) 94%, transparent);
+  padding: 10px 11px;
+  box-shadow:
+    0 14px 42px color-mix(in srgb, var(--black) 20%, transparent),
+    inset 3px 0 0 color-mix(in srgb, var(--source) 72%, transparent);
+}
+
+.map-activity-banner--failed {
+  border-color: color-mix(in srgb, var(--danger) 22%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--danger) 6.5%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface-ink-2) 94%, transparent);
+  box-shadow:
+    0 14px 42px color-mix(in srgb, var(--black) 20%, transparent),
+    inset 3px 0 0 color-mix(in srgb, var(--danger) 68%, transparent);
+}
+
+.map-activity-banner--needs_review {
+  border-color: color-mix(in srgb, var(--warning) 20%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--warning) 5.5%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface-ink-2) 94%, transparent);
+  box-shadow:
+    0 14px 42px color-mix(in srgb, var(--black) 20%, transparent),
+    inset 3px 0 0 color-mix(in srgb, var(--warning) 66%, transparent);
+}
+
+.map-activity-banner__source {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--source) 24%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--source) 7%, transparent);
+  color: var(--source);
+}
+
+.map-activity-banner__copy {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 9px;
+  align-items: baseline;
+}
+
+.map-activity-banner__copy > span {
+  color: var(--source);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-activity-banner__copy > strong,
+.map-activity-banner__copy > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-activity-banner__copy > strong {
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.map-activity-banner__copy > small {
+  grid-column: 1 / -1;
+  color: var(--muted-2);
+  font-size: 10px;
+}
+
+.map-activity-banner__status {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 1px 7px;
+  align-items: center;
+  color: var(--ai);
+}
+
+.map-activity-banner__status > svg {
+  grid-row: 1 / 3;
+}
+
+.map-activity-banner--queued .map-activity-banner__status > svg,
+.map-activity-banner--running .map-activity-banner__status > svg {
+  animation: map-readiness-spin 1.2s linear infinite;
+}
+
+.map-activity-banner--failed .map-activity-banner__status {
+  color: var(--danger);
+}
+
+.map-activity-banner--needs_review .map-activity-banner__status {
+  color: var(--context);
+}
+
+.map-activity-banner__status > span {
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.map-activity-banner__status > small {
+  max-width: 280px;
+  overflow: hidden;
+  color: var(--muted-2);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-activity-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-activity-banner__retry,
+.map-activity-banner__open {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
+  color: var(--foreground);
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.map-activity-banner__open {
+  width: 32px;
+  padding: 0;
+}
+
+.map-activity-banner__retry:hover:not(:disabled),
+.map-activity-banner__open:hover {
+  border-color: color-mix(in srgb, var(--signal) 26%, transparent);
+  background: color-mix(in srgb, var(--signal) 7%, transparent);
+  color: var(--signal);
+}
+
+@keyframes map-readiness-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes map-readiness-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.82); }
+  50% { opacity: 1; transform: scale(1.18); }
 }
 
 .canvas-stage__header,
@@ -1168,8 +1842,8 @@ textarea:focus-visible {
   min-height: 72px;
   border-bottom: 1px solid var(--line-soft);
   background:
-    linear-gradient(90deg, rgba(125, 211, 252, 0.055), transparent 44%),
-    rgba(255, 255, 255, 0.015);
+    linear-gradient(90deg, color-mix(in srgb, var(--source) 5.5%, transparent), transparent 44%),
+    color-mix(in srgb, var(--white) 1.5%, transparent);
   padding: 14px 16px;
 }
 
@@ -1186,22 +1860,22 @@ textarea:focus-visible {
   flex: 1;
   min-height: 0;
   background:
-    radial-gradient(circle at 52% 48%, rgba(214, 255, 107, 0.055), transparent 28%),
-    rgba(5, 5, 6, 0.2);
+    radial-gradient(circle at 52% 48%, color-mix(in srgb, var(--signal) 5.5%, transparent), transparent 28%),
+    color-mix(in srgb, var(--canvas) 20%, transparent);
 }
 
 .canvas-help {
   max-width: 280px;
-  border: 1px solid rgba(125, 211, 252, 0.14);
+  border: 1px solid color-mix(in srgb, var(--source) 14%, transparent);
   border-radius: 999px;
-  background: rgba(5, 5, 6, 0.72);
+  background: color-mix(in srgb, var(--canvas) 72%, transparent);
   padding: 8px 11px;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
   box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 12px 28px color-mix(in srgb, var(--black) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
   backdrop-filter: blur(16px);
 }
 
@@ -1233,15 +1907,15 @@ textarea:focus-visible {
   min-height: 92px;
   grid-template-columns: 5px minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.105);
+  border: 1px solid color-mix(in srgb, var(--white) 10.5%, transparent);
   border-radius: 12px;
   background:
-    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.075), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 48%),
-    rgba(18, 18, 22, 0.95);
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--white) 7.5%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--white) 5%, transparent), transparent 48%),
+    color-mix(in srgb, var(--surface-ink-7) 95%, transparent);
   box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    0 16px 34px color-mix(in srgb, var(--black) 34%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 4.5%, transparent);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -1265,20 +1939,20 @@ textarea:focus-visible {
 }
 
 .mind-node:hover {
-  border-color: rgba(214, 255, 107, 0.34);
+  border-color: color-mix(in srgb, var(--signal) 34%, transparent);
   transform: translateY(-1px);
 }
 
 .mind-node--selected {
-  border-color: rgba(214, 255, 107, 0.55);
+  border-color: color-mix(in srgb, var(--signal) 55%, transparent);
   box-shadow:
-    0 0 0 1px rgba(214, 255, 107, 0.18),
-    0 20px 42px rgba(0, 0, 0, 0.46),
-    0 0 52px rgba(214, 255, 107, 0.08);
+    0 0 0 1px color-mix(in srgb, var(--signal) 18%, transparent),
+    0 20px 42px color-mix(in srgb, var(--black) 46%, transparent),
+    0 0 52px color-mix(in srgb, var(--signal) 8%, transparent);
 }
 
 .mind-node--highlighted:not(.mind-node--selected) {
-  border-color: rgba(125, 211, 252, 0.36);
+  border-color: color-mix(in srgb, var(--source) 36%, transparent);
 }
 
 .mind-node__stripe {
@@ -1323,7 +1997,7 @@ textarea:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  color: rgba(244, 244, 245, 0.54);
+  color: color-mix(in srgb, var(--foreground) 54%, transparent);
   font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   font-size: 10px;
   text-transform: uppercase;
@@ -1334,11 +2008,11 @@ textarea:focus-visible {
 }
 
 .mind-node__topline span:last-child {
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border: 1px solid color-mix(in srgb, var(--white) 7.5%, transparent);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.045);
+  background: color-mix(in srgb, var(--white) 4.5%, transparent);
   padding: 2px 6px;
-  color: rgba(244, 244, 245, 0.58);
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
 }
 
 .mind-node h3 {
@@ -1347,6 +2021,19 @@ textarea:focus-visible {
   font-size: 15px;
   font-weight: 760;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mind-node h3,
+.capture-table h3,
+.search-results h3,
+.provisional-source-node h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .mind-node--major h3 {
@@ -1371,8 +2058,8 @@ textarea:focus-visible {
 .mind-node__handle {
   width: 8px;
   height: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: #050506;
+  border: 1px solid color-mix(in srgb, var(--white) 60%, transparent);
+  background: var(--canvas);
 }
 
 .react-flow__node {
@@ -1389,7 +2076,7 @@ textarea:focus-visible {
 }
 
 .react-flow__edge-path {
-  filter: drop-shadow(0 0 8px rgba(214, 255, 107, 0.035));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--signal) 3.5%, transparent));
 }
 
 .react-flow__edge-text {
@@ -1401,7 +2088,7 @@ textarea:focus-visible {
   overflow: hidden;
   border: 1px solid var(--line-soft) !important;
   border-radius: 8px !important;
-  background: rgba(5, 5, 6, 0.78) !important;
+  background: color-mix(in srgb, var(--canvas) 78%, transparent) !important;
 }
 
 .react-flow__controls-button {
@@ -1417,7 +2104,7 @@ textarea:focus-visible {
 .galaxy-stage {
   min-height: calc(100vh - 102px);
   border-color: transparent;
-  background: #000;
+  background: var(--black);
 }
 
 .galaxy-hud {
@@ -1427,7 +2114,7 @@ textarea:focus-visible {
   max-width: 380px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(5, 5, 6, 0.68);
+  background: color-mix(in srgb, var(--canvas) 68%, transparent);
   padding: 12px;
   backdrop-filter: blur(16px);
 }
@@ -1439,7 +2126,7 @@ textarea:focus-visible {
 .galaxy-hud span {
   display: inline-flex;
   margin-top: 8px;
-  border: 1px solid rgba(125, 211, 252, 0.22);
+  border: 1px solid color-mix(in srgb, var(--source) 22%, transparent);
   border-radius: 999px;
   padding: 5px 8px;
   color: var(--source);
@@ -1482,7 +2169,7 @@ textarea:focus-visible {
   min-height: 64px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
   padding: 12px;
   color: var(--foreground);
   text-align: left;
@@ -1490,8 +2177,8 @@ textarea:focus-visible {
 
 .capture-table button:hover,
 .capture-table button.is-selected {
-  border-color: rgba(214, 255, 107, 0.38);
-  background: rgba(214, 255, 107, 0.08);
+  border-color: color-mix(in srgb, var(--signal) 38%, transparent);
+  background: color-mix(in srgb, var(--signal) 8%, transparent);
 }
 
 .capture-table h3 {
@@ -1534,7 +2221,7 @@ textarea:focus-visible {
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(7, 9, 10, 0.86);
+  background: color-mix(in srgb, var(--surface-ink-1) 86%, transparent);
 }
 
 .capture-layer {
@@ -1548,7 +2235,7 @@ textarea:focus-visible {
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(0, 0, 0, 0.28);
+  background: color-mix(in srgb, var(--black) 28%, transparent);
   cursor: default;
   pointer-events: auto;
   backdrop-filter: blur(1px);
@@ -1567,9 +2254,9 @@ textarea:focus-visible {
   overflow: auto;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: rgba(8, 11, 13, 0.97);
+  background: color-mix(in srgb, var(--surface-ink-2) 97%, transparent);
   padding: 12px;
-  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.58);
+  box-shadow: 0 32px 90px color-mix(in srgb, var(--black) 58%, transparent);
   pointer-events: auto;
 }
 
@@ -1624,11 +2311,188 @@ textarea:focus-visible {
 .search-panel__header h2 {
   margin: 3px 0 0;
   font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.search-analysis-notice {
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--source) 5.5%, transparent), transparent 68%),
+    color-mix(in srgb, var(--source) 1.8%, transparent);
+  padding: 13px 14px;
+}
+
+.search-analysis-notice__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--source);
+}
+
+.search-analysis-notice__heading svg {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.search-analysis-notice__heading strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.search-analysis-notice__heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.search-analysis-notice ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-analysis-notice li {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
+  padding: 7px 8px;
+}
+
+.search-analysis-notice li span,
+.search-analysis-notice li em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-analysis-notice li span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.search-analysis-notice li em {
+  color: var(--muted-2);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.search-analysis-notice li[data-status="ready"] em {
+  color: var(--signal);
+}
+
+.search-progress {
+  display: grid;
+  gap: 18px;
+  min-height: 210px;
+  padding: 22px 18px;
+}
+
+.search-progress__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.search-progress__heading > svg {
+  margin-top: 2px;
+  flex: 0 0 auto;
+  color: var(--source);
+}
+
+.search-progress__heading strong {
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.search-progress__heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.search-progress ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-progress li {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
+  padding: 9px;
+  opacity: 0.52;
+}
+
+.search-progress li.is-current {
+  border-color: color-mix(in srgb, var(--source) 28%, transparent);
+  background: color-mix(in srgb, var(--source) 5.5%, transparent);
+  opacity: 1;
+}
+
+.search-progress li > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.search-progress li.is-current > span {
+  border-color: color-mix(in srgb, var(--source) 24%, transparent);
+  color: var(--source);
+}
+
+.search-progress li strong,
+.search-progress li small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-progress li strong {
+  color: var(--foreground);
+  font-size: 10px;
+}
+
+.search-progress li small {
+  margin-top: 3px;
+  color: var(--muted-2);
+  font-size: 9px;
 }
 
 .search-panel mark {
   border-radius: 4px;
-  background: rgba(214, 255, 107, 0.24);
+  background: color-mix(in srgb, var(--signal) 24%, transparent);
   color: var(--foreground);
   padding: 0 2px;
 }
@@ -1710,14 +2574,14 @@ textarea:focus-visible {
   gap: 7px;
   border: 1px solid var(--line-soft);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
   padding: 11px;
   text-align: left;
 }
 
 .search-results button:hover {
-  border-color: rgba(214, 255, 107, 0.28);
-  background: rgba(214, 255, 107, 0.045);
+  border-color: color-mix(in srgb, var(--signal) 28%, transparent);
+  background: color-mix(in srgb, var(--signal) 4.5%, transparent);
 }
 
 .search-result__topline {
@@ -1747,13 +2611,13 @@ textarea:focus-visible {
 }
 
 .inspector-section {
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border: 1px solid color-mix(in srgb, var(--white) 7.5%, transparent);
   border-radius: 8px;
   background:
-    linear-gradient(145deg, rgba(125, 211, 252, 0.035), transparent 34%),
-    rgba(11, 11, 13, 0.84);
+    linear-gradient(145deg, color-mix(in srgb, var(--source) 3.5%, transparent), transparent 34%),
+    color-mix(in srgb, var(--surface-panel-deep) 84%, transparent);
   padding: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 2.5%, transparent);
 }
 
 .inspector-heading h2 {
@@ -1767,7 +2631,7 @@ textarea:focus-visible {
   margin-top: 12px;
   border-radius: 999px;
   padding: 7px 10px;
-  color: #050506;
+  color: var(--canvas);
   font-size: 12px;
   font-weight: 750;
 }
@@ -1799,9 +2663,9 @@ textarea:focus-visible {
   grid-template-columns: 8px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid color-mix(in srgb, var(--white) 5.5%, transparent);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.026);
+  background: color-mix(in srgb, var(--white) 2.6%, transparent);
   padding: 9px 10px;
   color: var(--muted);
   font-size: 13px;
@@ -1854,14 +2718,14 @@ textarea:focus-visible {
 .export-panel {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(103, 232, 249, 0.14);
+  border: 1px solid color-mix(in srgb, var(--evidence) 14%, transparent);
   border-radius: 8px;
   background:
-    linear-gradient(145deg, rgba(103, 232, 249, 0.075), transparent 28%),
-    radial-gradient(circle at 88% 8%, rgba(214, 255, 107, 0.11), transparent 24%),
-    rgba(7, 10, 11, 0.92);
+    linear-gradient(145deg, color-mix(in srgb, var(--evidence) 7.5%, transparent), transparent 28%),
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--signal) 11%, transparent), transparent 24%),
+    color-mix(in srgb, var(--surface-ink-8) 92%, transparent);
   padding: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 4%, transparent);
 }
 
 .export-panel__orbit {
@@ -1870,7 +2734,7 @@ textarea:focus-visible {
   right: -125px;
   width: 260px;
   height: 260px;
-  border: 1px solid rgba(103, 232, 249, 0.18);
+  border: 1px solid color-mix(in srgb, var(--evidence) 18%, transparent);
   border-radius: 999px;
   pointer-events: none;
 }
@@ -1878,7 +2742,7 @@ textarea:focus-visible {
 .export-panel__orbit::after {
   position: absolute;
   inset: 42px;
-  border: 1px dashed rgba(214, 255, 107, 0.17);
+  border: 1px dashed color-mix(in srgb, var(--signal) 17%, transparent);
   border-radius: inherit;
   content: "";
 }
@@ -1903,9 +2767,9 @@ textarea:focus-visible {
 }
 
 .export-panel__warning {
-  border: 1px solid rgba(253, 164, 175, 0.24);
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
   border-radius: 8px;
-  background: rgba(253, 164, 175, 0.08);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
   padding: 10px;
   color: var(--danger);
 }
@@ -1926,7 +2790,7 @@ textarea:focus-visible {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
+  background: color-mix(in srgb, var(--white) 3.5%, transparent);
   padding: 11px;
   color: var(--foreground);
   text-align: left;
@@ -1937,8 +2801,8 @@ textarea:focus-visible {
 }
 
 .export-format:hover:not(:disabled) {
-  border-color: rgba(103, 232, 249, 0.34);
-  background: rgba(103, 232, 249, 0.07);
+  border-color: color-mix(in srgb, var(--evidence) 34%, transparent);
+  background: color-mix(in srgb, var(--evidence) 7%, transparent);
   transform: translateY(-1px);
 }
 
@@ -1951,10 +2815,10 @@ textarea:focus-visible {
   width: 36px;
   height: 36px;
   place-items: center;
-  border: 1px solid rgba(103, 232, 249, 0.18);
+  border: 1px solid color-mix(in srgb, var(--evidence) 18%, transparent);
   border-radius: 8px;
   color: var(--source);
-  background: rgba(103, 232, 249, 0.06);
+  background: color-mix(in srgb, var(--evidence) 6%, transparent);
 }
 
 .export-format strong,
@@ -1987,11 +2851,11 @@ textarea:focus-visible {
 }
 
 .export-format--pending {
-  border-color: rgba(103, 232, 249, 0.38);
+  border-color: color-mix(in srgb, var(--evidence) 38%, transparent);
 }
 
 .export-format--success {
-  border-color: rgba(214, 255, 107, 0.34);
+  border-color: color-mix(in srgb, var(--signal) 34%, transparent);
 }
 
 .export-format--success em {
@@ -1999,7 +2863,7 @@ textarea:focus-visible {
 }
 
 .export-format--error {
-  border-color: rgba(253, 164, 175, 0.34);
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
 }
 
 .export-format--error em {
@@ -2008,7 +2872,12 @@ textarea:focus-visible {
 
 @media (max-width: 1280px) {
   .workspace-toolbar {
-    grid-template-columns: minmax(180px, 220px) auto minmax(240px, 1fr) auto 44px;
+    grid-template-columns: minmax(180px, 220px) auto auto minmax(300px, 1fr) 44px;
+  }
+
+  .toolbar-search {
+    width: 100%;
+    min-width: 0;
   }
 
   .toolbar-account {
@@ -2030,12 +2899,18 @@ textarea:focus-visible {
   }
 
   .workspace-toolbar {
-    grid-template-columns: minmax(180px, 1fr) auto auto;
+    grid-template-columns: minmax(180px, 1fr) auto minmax(0, auto) 44px;
   }
 
   .toolbar-search {
     grid-column: 1 / -1;
     grid-row: 2;
+    justify-self: stretch;
+  }
+
+  .toolbar-account {
+    grid-column: 4;
+    grid-row: 1;
   }
 
   .toolbar-nav,
@@ -2054,6 +2929,11 @@ textarea:focus-visible {
 
   .capture-panel--hero {
     grid-template-columns: 1fr;
+  }
+
+  .map-readiness-canvas {
+    grid-template-columns: minmax(240px, 0.9fr) minmax(40px, 0.12fr) minmax(340px, 1.08fr);
+    width: min(920px, calc(100% - 32px));
   }
 }
 
@@ -2094,8 +2974,42 @@ textarea:focus-visible {
     grid-row: 1;
   }
 
+  .toolbar-search kbd {
+    display: none;
+  }
+
+  .search-analysis-notice ul,
+  .search-progress ol {
+    grid-template-columns: 1fr;
+  }
+
+  .map-activity-banner {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 8px 10px;
+  }
+
+  .map-activity-banner__copy > small,
+  .map-activity-banner__status > small {
+    display: none;
+  }
+
+  .map-activity-banner__status {
+    grid-column: 2;
+    grid-row: 2;
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .map-activity-banner__status > svg {
+    grid-row: auto;
+  }
+
+  .map-activity-banner__actions {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
   .capture-layer__backdrop {
-    background: rgba(0, 0, 0, 0.5);
+    background: color-mix(in srgb, var(--black) 50%, transparent);
   }
 
   .capture-drawer {
@@ -2123,6 +3037,62 @@ textarea:focus-visible {
 
   .graph-legend {
     display: none;
+  }
+
+  .map-readiness-header {
+    flex-direction: column;
+  }
+
+  .map-readiness-canvas {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    width: calc(100% - 28px);
+    padding: 22px 0 32px;
+  }
+
+  .map-readiness-connector {
+    width: 1px;
+    height: 28px;
+    justify-self: center;
+  }
+
+  .map-readiness-connector span {
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(color-mix(in srgb, var(--source) 70%, transparent), color-mix(in srgb, var(--ai) 22%, transparent));
+  }
+
+  .map-readiness-connector i {
+    right: -3px;
+    bottom: -2px;
+  }
+
+  .map-readiness-pipeline ol {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .map-readiness-pipeline li {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+    min-height: 34px;
+    text-align: left;
+  }
+
+  .map-readiness-pipeline li::before {
+    top: -12px;
+    right: auto;
+    left: 12px;
+    width: 1px;
+    height: 18px;
+  }
+
+  .map-readiness-pipeline li > span,
+  .map-readiness-pipeline li > p,
+  .map-readiness-pipeline li > em {
+    margin: 0;
   }
 }
 

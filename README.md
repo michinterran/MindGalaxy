@@ -7,7 +7,7 @@ MindGalaxy is a web-first MVP for a personal AI knowledge repository. Users past
 - Step 1: Next.js 16 App Router scaffold, TypeScript, Tailwind CSS, ESLint, black-first app shell, initial domain model, and planning docs.
 - Step 2: local Supabase schema/RLS migration drafts, workspace-owned data model, capture validation/persistence boundary, and typed database shape.
 - Step 3: Google/email auth entry points, Supabase callback, automatic personal workspace bootstrap, and logged-in quick capture.
-- Step 4: queued capture-analysis worker boundary, OpenAI structured extraction prompt, embedding creation, job attempts, and canonical node/edge/context persistence.
+- Step 4: durable Vercel Queue capture-analysis delivery, OpenAI structured extraction prompt, embedding creation, job attempts, stalled-lease recovery, and canonical node/edge/context persistence.
 - Step 5: workspace graph loader, projection model, React Flow mind map, Galaxy beta view, inspector, and list view.
 - Step 6: deterministic export engine for HTML, PDF, and PPTX using one GraphSnapshot document model; sample QA artifacts are local-only under `/output/`.
 
@@ -41,6 +41,7 @@ ANALYSIS_WORKER_SECRET=
 ## Runtime Surfaces
 
 - Capture: `POST /api/captures` stores raw source text and queues analysis.
+- Queue consumer: `POST /api/queues/analyze-capture` is a Vercel-internal private push consumer configured by `vercel.ts`; each message claims only its correlated processing job.
 - Worker: `POST /api/worker/analyze-captures` claims queued jobs, calls OpenAI, embeds content, and persists graph data through SQL RPCs.
 - Search: `POST /api/search` embeds the query, calls the hybrid SQL RPC, localizes blank capture titles, and generates bounded grounded answers.
 - Export: `POST /api/exports` renders the current workspace graph to HTML, PDF, or PPTX.
@@ -57,11 +58,45 @@ ANALYSIS_WORKER_SECRET=
 
 ## Verification
 
+WCJ (Web Compliance & Journey) is the central web-page quality gate. It checks
+MindGalaxy's semantic HTML and accessibility contracts, design/i18n/Korean
+typography consistency, and the capture-to-map product journey. Its normative
+basis and release thresholds are defined in
+[`docs/03-review/wcj-web-compliance-journey-standard.md`](docs/03-review/wcj-web-compliance-journey-standard.md).
+
 ```bash
-npm test -- --run
-npm run lint
-npm run build
-git diff --check
+npm run validate:wcj       # Fast WCJ gate with a human-readable report
+npm run validate:wcj:json  # CI/dashboard artifact output
+npm run verify             # Lint + types + tests + WCJ + production build
+git diff --check && git diff --cached --check # Unstaged + staged whitespace
 ```
 
-CI runs `npm ci`, tests, lint, and build. `npm audit --audit-level=moderate` is reported non-blocking in CI; the current local audit is documented in the Phase 8 review summary and should not be fixed with force downgrades.
+`npm run typecheck` removes stale `.next` output, regenerates the current Next.js
+route types with `next typegen`, and then runs TypeScript. This keeps repeated local
+and CI verification deterministic without excluding framework-generated route types.
+
+WCJ supplements browser and assistive-technology testing; a 100 score is not a
+claim of complete WCAG conformance. Production promotion still requires the
+manual keyboard, screen-reader, contrast, responsive Korean typography,
+capture-to-map queue, and reduced-motion/WebGL checks printed by the validator.
+
+## Vercel Queue Setup
+
+Production uses Vercel OIDC automatically; no Queue API token needs to be added to the deployed project. Deploy `vercel.ts` with the app so Vercel can create the private `capture-analysis` push trigger.
+
+For local Queue delivery, use the linked project credentials:
+
+```bash
+vercel link
+vercel env pull
+vercel dev
+```
+
+Without local Vercel credentials, capture creation falls back to one best-effort Next.js `after()` analysis run. The bearer-protected manual worker remains available for operational recovery.
+
+CI runs `npm ci`, tests, lint, clean Next.js route type generation and typecheck,
+the mandatory WCJ gate, a whitespace check over the actual pull-request or push
+commit range, and the production build.
+`npm audit --audit-level=moderate` is reported
+non-blocking in CI; the current local audit is documented in the Phase 8 review
+summary and should not be fixed with force downgrades.

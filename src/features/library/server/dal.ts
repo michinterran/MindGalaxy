@@ -223,6 +223,8 @@ export async function retryProcessingJobRecord(
   return {
     processingJob: {
       id: data.job_id,
+      captureId: job.capture_id,
+      workspaceId: job.workspace_id,
       status: data.status,
       retryCount: data.retry_count,
       maxAttempts: data.max_attempts,

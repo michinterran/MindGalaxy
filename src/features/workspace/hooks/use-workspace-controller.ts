@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { WORKSPACE_REGISTRY } from "@/config/registry";
 import type { WorkspaceArea } from "@/features/workspace/model/navigation";
 import type {
-  RecentCapture,
   ViewMode,
 } from "@/features/knowledge-map/components/knowledge-map-client";
+import type { RecentCapture } from "@/features/knowledge-map/model/readiness";
 import type { GraphProjection } from "@/features/knowledge-map/model/graph";
 import type { SearchPanelState } from "@/features/search/components/search-command-panel";
 import {
@@ -34,19 +34,12 @@ export function useWorkspaceController({
   workspaceId: string;
 }) {
   const router = useRouter();
-  const hasAttentionItems = recentCaptures.some((capture) =>
-    WORKSPACE_REGISTRY.attentionStatuses.some(
-      (status) => status === capture.processingStatus,
-    ),
-  );
   const hasActiveJobs = recentCaptures.some((capture) =>
     WORKSPACE_REGISTRY.activeStatuses.some(
       (status) => status === capture.processingStatus,
     ),
   );
-  const [activeArea, setActiveArea] = useState<WorkspaceArea>(
-    captureCount > 0 && hasAttentionItems ? "library" : "knowledge",
-  );
+  const [activeArea, setActiveArea] = useState<WorkspaceArea>("knowledge");
   const [viewMode, setViewMode] = useState<ViewMode>("mindmap");
   const [searchQuery, setSearchQuery] = useState("");
   const [showExportPanel, setShowExportPanel] = useState(false);

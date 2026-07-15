@@ -2,7 +2,9 @@
 
 import { type RefObject, useEffect, useRef } from "react";
 import {
+  ArrowRight,
   Library,
+  Loader2,
   LogOut,
   Map,
   Plus,
@@ -42,6 +44,8 @@ export function WorkspaceToolbar({
 }) {
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const inputRef = searchInputRef ?? fallbackInputRef;
+  const isSearchLoading = searchStatus === "loading";
+  const isSearchDisabled = !searchQuery.trim() || isSearchLoading;
   const navigation = [
     {
       id: "library",
@@ -112,6 +116,7 @@ export function WorkspaceToolbar({
       </nav>
 
       <form
+        aria-busy={isSearchLoading}
         className={`toolbar-search toolbar-search--${searchStatus}`}
         onSubmit={(event) => {
           event.preventDefault();
@@ -129,6 +134,31 @@ export function WorkspaceToolbar({
           value={searchQuery}
         />
         <kbd>{t(locale, "workspace.toolbar.searchShortcut")}</kbd>
+        <button
+          aria-label={t(
+            locale,
+            isSearchLoading
+              ? "workspace.toolbar.searchSubmitting"
+              : "workspace.toolbar.searchSubmit",
+          )}
+          className="toolbar-search__submit"
+          disabled={isSearchDisabled}
+          type="submit"
+        >
+          {isSearchLoading ? (
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          ) : (
+            <ArrowRight aria-hidden="true" className="size-4" />
+          )}
+          <span>
+            {t(
+              locale,
+              isSearchLoading
+                ? "workspace.toolbar.searchSubmitting"
+                : "workspace.toolbar.searchSubmit",
+            )}
+          </span>
+        </button>
       </form>
 
       <div className="toolbar-account">

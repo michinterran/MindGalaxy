@@ -433,6 +433,28 @@ export type Database = {
           prompt_version: string;
         }[];
       };
+      claim_capture_analysis_job_by_id: {
+        Args: {
+          p_job_id: string;
+          p_worker_id: string;
+          p_lease_seconds?: number;
+          p_model?: string | null;
+          p_prompt_version?: string | null;
+          p_max_attempts?: number;
+        };
+        Returns: {
+          job_id: string;
+          attempt_id: string;
+          attempt_number: number;
+          workspace_id: string;
+          capture_id: string;
+          raw_text: string;
+          source_kind: CaptureSourceKind;
+          title: string | null;
+          model: string;
+          prompt_version: string;
+        }[];
+      };
       persist_capture_analysis_result: {
         Args: {
           p_job_id: string;

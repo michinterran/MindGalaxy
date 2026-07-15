@@ -3,17 +3,21 @@
 import { useCallback, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { CapturePanel } from "@/components/capture-panel";
+import type { CaptureDraft } from "@/components/capture-panel";
+import type { CreateCaptureResponse } from "@/features/capture/api/capture-client";
 import { useDialogPanel } from "@/components/dialog-panel";
 import { t, type Locale } from "@/lib/i18n";
 
 export function CaptureDrawer({
   locale,
   onClose,
+  onCaptureCreated,
   onViewLibrary,
   workspaceId,
 }: {
   locale: Locale;
   onClose: () => void;
+  onCaptureCreated?: (result: CreateCaptureResponse, draft: CaptureDraft) => void;
   onViewLibrary: () => void;
   workspaceId: string;
 }) {
@@ -57,6 +61,7 @@ export function CaptureDrawer({
         <CapturePanel
           autoFocus
           locale={locale}
+          onCaptureCreated={onCaptureCreated}
           onViewLibrary={onViewLibrary}
           workspaceId={workspaceId}
           variant="panel"

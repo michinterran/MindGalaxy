@@ -1,13 +1,26 @@
 "use client";
 
 import { useId, useMemo, useRef } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Search, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileSearch,
+  Loader2,
+  Network,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useDialogPanel } from "@/components/dialog-panel";
 import type {
   GroundedAnswer,
   SearchResult,
 } from "@/features/search/model/schemas";
 import { splitHighlightSegments } from "@/features/search/model/highlight";
+import {
+  getSearchLayerReadiness,
+  SEARCH_PROGRESS_STEPS,
+} from "@/features/search/model/presentation";
 import { t, type Locale } from "@/lib/i18n";
 import { searchSourceTypeLabel } from "@/lib/i18n/labels";
 
@@ -44,11 +57,13 @@ function HighlightedText({
 }
 
 export function SearchCommandPanel({
+  hasActiveAnalysis = false,
   locale,
   onClose,
   onSelectResult,
   state,
 }: {
+  hasActiveAnalysis?: boolean;
   locale: Locale;
   onClose: () => void;
   onSelectResult: (result: SearchResult) => void;
@@ -63,6 +78,11 @@ export function SearchCommandPanel({
     onClose,
   });
   const queryTokens = useMemo(() => state.query.split(/\s+/g), [state.query]);
+  const layerReadiness = useMemo(
+    () => getSearchLayerReadiness(hasActiveAnalysis),
+    [hasActiveAnalysis],
+  );
+  const progressIcons = [FileSearch, Network, Sparkles] as const;
 
   function tokensForResult(result: SearchResult) {
     const citationTokens =
@@ -99,10 +119,67 @@ export function SearchCommandPanel({
         </button>
       </header>
 
+      {hasActiveAnalysis ? (
+        <section className="search-analysis-notice">
+          <div className="search-analysis-notice__heading">
+            <FileSearch aria-hidden="true" className="size-4" />
+            <div>
+              <strong>{t(locale, "workspace.search.analysisNotice.title")}</strong>
+              <p>{t(locale, "workspace.search.analysisNotice.description")}</p>
+            </div>
+          </div>
+          <ul aria-label={t(locale, "workspace.search.analysisNotice.title")}>
+            {layerReadiness.map((layer) => (
+              <li data-status={layer.status} key={layer.id}>
+                <span>{t(locale, layer.labelKey)}</span>
+                <em>
+                  {t(
+                    locale,
+                    layer.status === "ready"
+                      ? "workspace.search.layer.ready"
+                      : "workspace.search.layer.preparing",
+                  )}
+                </em>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {isLoading ? (
-        <section className="search-panel__state">
-          <Loader2 className="size-5 animate-spin" />
-          <p>{t(locale, "workspace.search.loading")}</p>
+        <section aria-live="polite" className="search-progress">
+          <div className="search-progress__heading">
+            <Loader2 aria-hidden="true" className="size-5 animate-spin" />
+            <div>
+              <strong>{t(locale, "workspace.search.loading")}</strong>
+              <p>{t(locale, "workspace.search.loadingDescription")}</p>
+            </div>
+          </div>
+          <ol>
+            {SEARCH_PROGRESS_STEPS.map((step, index) => {
+              const Icon = progressIcons[index];
+              const isCurrent = index === 0;
+
+              return (
+                <li className={isCurrent ? "is-current" : ""} key={step.id}>
+                  <span>
+                    <Icon aria-hidden="true" className="size-4" />
+                  </span>
+                  <div>
+                    <strong>{t(locale, step.labelKey)}</strong>
+                    <small>
+                      {t(
+                        locale,
+                        isCurrent
+                          ? "workspace.search.progress.current"
+                          : "workspace.search.progress.pending",
+                      )}
+                    </small>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         </section>
       ) : null}
 

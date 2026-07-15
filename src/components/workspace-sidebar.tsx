@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
-import type { RecentCapture } from "@/features/knowledge-map/components/knowledge-map-client";
+import type { RecentCapture } from "@/features/knowledge-map/model/readiness";
 import { formatDateTime, formatInteger, t, type Locale } from "@/lib/i18n";
 import {
   captureSourceLabel,

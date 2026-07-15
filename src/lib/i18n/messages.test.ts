@@ -22,6 +22,27 @@ describe("i18n dictionaries", () => {
     expect(messages.en["brand.description"]).toBe(BRAND_COPY.en.description);
   });
 
+  it("keeps approved semantic headline lines in i18n instead of JSX", () => {
+    expect([
+      messages.ko["brand.sloganLine1"],
+      messages.ko["brand.sloganLine2"],
+    ].join(" ")).toBe(BRAND_COPY.ko.slogan);
+    expect([
+      messages.ko["onboarding.titleLine1"],
+      messages.ko["onboarding.titleLine2"],
+    ].join(" ")).toBe(messages.ko["onboarding.title"]);
+    expect(messages.ko["brand.sloganLine1"]).not.toMatch(/\n/);
+    expect(messages.ko["onboarding.titleLine1"]).not.toMatch(/\n/);
+  });
+
+  it("keeps the visible search action and progress copy localized", () => {
+    expect(messages.ko["workspace.toolbar.searchSubmit"]).toBe("질문하기");
+    expect(messages.en["workspace.toolbar.searchSubmit"]).toBe("Ask");
+    expect(messages.ko["workspace.search.progress.retrieve"]).toBeTruthy();
+    expect(messages.ko["workspace.search.progress.evidence"]).toBeTruthy();
+    expect(messages.ko["workspace.search.progress.answer"]).toBeTruthy();
+  });
+
   it("keeps MVP toolbar keys free of removed canvas controls", () => {
     expect(messages.ko).not.toHaveProperty("workspace.toolbar.canvasToolsAria");
     expect(messages.ko).not.toHaveProperty("workspace.toolbar.fitView");

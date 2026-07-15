@@ -27,8 +27,13 @@ type CapturePanelProps = {
   autoFocus?: boolean;
   variant?: "panel" | "hero";
   locale?: Locale;
-  onCaptureCreated?: (result: CreateCaptureResponse) => void;
+  onCaptureCreated?: (result: CreateCaptureResponse, draft: CaptureDraft) => void;
   onViewLibrary?: () => void;
+};
+
+export type CaptureDraft = {
+  rawText: string;
+  title: string | null;
 };
 
 type CaptureState =
@@ -156,7 +161,10 @@ export function CapturePanel({
           kind: "success",
           message: t(locale, "capture.status.success"),
         });
-        onCaptureCreated?.(result);
+        onCaptureCreated?.(result, {
+          rawText: trimmed,
+          title: trimmedTitle || null,
+        });
         router.refresh();
         requestAnimationFrame(() => rawTextRef.current?.focus());
       } catch (error) {

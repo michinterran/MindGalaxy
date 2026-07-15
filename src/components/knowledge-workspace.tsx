@@ -1,19 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Download, Map as MapIcon, Orbit } from "lucide-react";
 import { CaptureDrawer } from "@/components/capture-drawer";
-import { CapturePanel } from "@/components/capture-panel";
+import { CapturePanel, type CaptureDraft } from "@/components/capture-panel";
 import { WorkspaceToolbar } from "@/components/workspace-toolbar";
 import {
   FEATURE_REGISTRY,
   GRAPH_INTERACTION_REGISTRY,
+  WORKSPACE_REGISTRY,
 } from "@/config/registry";
 import { ExportPanel } from "@/features/export/components/export-panel";
-import {
-  KnowledgeMapClient,
-  type RecentCapture,
-} from "@/features/knowledge-map/components/knowledge-map-client";
+import { KnowledgeMapClient } from "@/features/knowledge-map/components/knowledge-map-client";
+import type { CreateCaptureResponse } from "@/features/capture/api/capture-client";
 import {
   createGraphEdge,
   deleteGraphEdge,
@@ -40,6 +39,7 @@ import {
   getEmptyGraphSnapshot,
 } from "@/features/knowledge-map/demo/demo-graph";
 import type { GraphSnapshot } from "@/features/knowledge-map/model/graph";
+import type { RecentCapture } from "@/features/knowledge-map/model/readiness";
 import { projectGraphSnapshot } from "@/features/knowledge-map/model/projection";
 import { SearchCommandPanel } from "@/features/search/components/search-command-panel";
 import { useWorkspaceController } from "@/features/workspace/hooks/use-workspace-controller";
@@ -99,6 +99,25 @@ function resolveGraphSnapshot({
   };
 }
 
+function optimisticRecentCapture(
+  result: CreateCaptureResponse,
+  draft: CaptureDraft,
+): RecentCapture {
+  return {
+    id: result.capture.id,
+    title: result.capture.title ?? draft.title,
+    rawTextLength: draft.rawText.length,
+    rawTextPreview: draft.rawText.replace(/\s+/g, " ").trim().slice(0, 180),
+    sourceKind: result.capture.source_kind,
+    createdAt: result.capture.created_at,
+    processingJobId: result.processingJob.id,
+    processingStatus: result.processingJob.status,
+    processingCreatedAt: result.processingJob.created_at,
+    processingUpdatedAt: result.processingJob.created_at,
+    retryCount: 0,
+  };
+}
+
 export function KnowledgeWorkspace({
   captureCount,
   graph,
@@ -107,25 +126,38 @@ export function KnowledgeWorkspace({
   userEmail,
   workspace,
 }: KnowledgeWorkspaceProps) {
+  const [optimisticCapture, setOptimisticCapture] = useState<RecentCapture | null>(null);
+  const visibleRecentCaptures = useMemo(() => {
+    if (!optimisticCapture || recentCaptures.some((capture) => capture.id === optimisticCapture.id)) {
+      return recentCaptures;
+    }
+    return [optimisticCapture, ...recentCaptures];
+  }, [optimisticCapture, recentCaptures]);
+  const visibleCaptureCount = Math.max(captureCount, visibleRecentCaptures.length);
+  const hasActiveAnalysis = visibleRecentCaptures.some((capture) =>
+    WORKSPACE_REGISTRY.activeStatuses.some(
+      (status) => status === capture.processingStatus,
+    ),
+  );
   const graphState = useMemo(
     () =>
       resolveGraphSnapshot({
-        captureCount,
+        captureCount: visibleCaptureCount,
         graph,
         locale,
         workspaceId: workspace.id,
       }),
-    [captureCount, graph, locale, workspace.id],
+    [graph, locale, visibleCaptureCount, workspace.id],
   );
   const projection = useMemo(
     () => projectGraphSnapshot(graphState.snapshot, graphState.layout),
     [graphState],
   );
   const controller = useWorkspaceController({
-    captureCount,
+    captureCount: visibleCaptureCount,
     graph: projection,
     locale,
-    recentCaptures,
+    recentCaptures: visibleRecentCaptures,
     workspaceId: workspace.id,
   });
   const refreshWorkspace = controller.refresh;
@@ -202,13 +234,19 @@ export function KnowledgeWorkspace({
     }),
     [refreshWorkspace],
   );
+  const rememberCapture = useCallback(
+    (result: CreateCaptureResponse, draft: CaptureDraft) => {
+      setOptimisticCapture(optimisticRecentCapture(result, draft));
+    },
+    [],
+  );
 
   return (
     <main className="mindgalaxy-app">
       <section className="workspace-shell">
         <WorkspaceToolbar
           activeArea={controller.activeArea}
-          captureCount={captureCount}
+          captureCount={visibleCaptureCount}
           locale={locale}
           onAreaChange={controller.changeArea}
           onNewMaterialClick={controller.openCapturePanel}
@@ -224,6 +262,7 @@ export function KnowledgeWorkspace({
           <CaptureDrawer
             locale={locale}
             onClose={controller.closeCapturePanel}
+            onCaptureCreated={rememberCapture}
             onViewLibrary={() => {
               controller.closeCapturePanel();
               controller.changeArea("library");
@@ -236,7 +275,13 @@ export function KnowledgeWorkspace({
             <section className="first-run-stage">
               <div className="first-run-stage__intro">
                 <p className="ui-kicker">{t(locale, "brand.philosophy")}</p>
-                <h2>{t(locale, "onboarding.title")}</h2>
+                <h2
+                  aria-label={t(locale, "onboarding.title")}
+                  className="semantic-headline"
+                >
+                  <span aria-hidden="true">{t(locale, "onboarding.titleLine1")}</span>
+                  <span aria-hidden="true">{t(locale, "onboarding.titleLine2")}</span>
+                </h2>
                 <p>{t(locale, "onboarding.description")}</p>
                 <div className="first-run-stage__trust">
                   <span>{t(locale, "onboarding.trust.source")}</span>
@@ -247,8 +292,9 @@ export function KnowledgeWorkspace({
               <CapturePanel
                 autoFocus
                 locale={locale}
-                onCaptureCreated={() => {
-                  controller.changeArea("library");
+                onCaptureCreated={(result, draft) => {
+                  rememberCapture(result, draft);
+                  controller.changeArea("knowledge");
                 }}
                 onViewLibrary={() => controller.changeArea("library")}
                 variant="hero"
@@ -291,9 +337,11 @@ export function KnowledgeWorkspace({
                 isDemo={graphState.isDemo}
                 locale={locale}
                 onNodePositionChange={saveNodePosition}
+                onNewCapture={controller.openCapturePanel}
+                onRetryCapture={libraryActions.retryProcessing}
                 onSelect={controller.selectNode}
                 onSelectCapture={controller.selectCapture}
-                recentCaptures={recentCaptures}
+                recentCaptures={visibleRecentCaptures}
                 selectedCaptureId={controller.selectedCaptureId}
                 selectedId={controller.effectiveSelectedId}
                 viewMode={controller.activeArea === "library" ? "list" : controller.viewMode}
@@ -302,6 +350,7 @@ export function KnowledgeWorkspace({
           )}
           {controller.showSearchPanel ? (
             <SearchCommandPanel
+              hasActiveAnalysis={hasActiveAnalysis}
               locale={locale}
               onClose={controller.closeSearchPanel}
               onSelectResult={controller.selectSearchResult}

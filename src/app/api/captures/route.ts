@@ -1,6 +1,9 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { runCaptureAnalysisBatch } from "@/features/analysis/worker/run-capture-analysis";
+import { ANALYSIS_QUEUE_REGISTRY } from "@/config/registry";
+import { logAnalysisEvent } from "@/features/analysis/observability";
+import { dispatchCaptureAnalysis } from "@/features/analysis/queue/dispatch";
+import { runCaptureAnalysisJob } from "@/features/analysis/worker/run-capture-analysis";
 import {
   InvalidJsonRequestError,
   invalidJsonResponse,
@@ -39,16 +42,58 @@ export async function POST(request: NextRequest) {
   try {
     const input = createCaptureInputSchema.parse(await parseJsonRequest(request));
     const result = await createCaptureWithProcessingJob(supabase, input);
-
-    after(async () => {
-      try {
-        await runCaptureAnalysisBatch(1);
-      } catch (error) {
-        console.error("[capture-analysis] background run failed", error);
-      }
+    const dispatch = await dispatchCaptureAnalysis({
+      schemaVersion: ANALYSIS_QUEUE_REGISTRY.schemaVersion,
+      eventType: ANALYSIS_QUEUE_REGISTRY.eventType,
+      processingJobId: result.processingJob.id,
+      captureId: result.capture.id,
+      workspaceId: result.capture.workspace_id,
+      createdAt: result.processingJob.created_at,
     });
 
-    return NextResponse.json(result, { status: 201 });
+    if (dispatch.transport === "fallback") {
+      after(async () => {
+        const startedAt = performance.now();
+
+        try {
+          const batch = await runCaptureAnalysisJob(result.processingJob.id, {
+            expectedCaptureId: result.capture.id,
+            expectedWorkspaceId: result.capture.workspace_id,
+          });
+          logAnalysisEvent("info", {
+            event: "fallback.completed",
+            stage: "after",
+            jobId: result.processingJob.id,
+            captureId: result.capture.id,
+            workspaceId: result.capture.workspace_id,
+            durationMs: Math.round(performance.now() - startedAt),
+            outcome:
+              batch.disposition === "terminal"
+                ? "idempotent_terminal"
+                : batch.disposition,
+          });
+        } catch {
+          logAnalysisEvent("error", {
+            event: "fallback.failed",
+            stage: "after",
+            jobId: result.processingJob.id,
+            captureId: result.capture.id,
+            workspaceId: result.capture.workspace_id,
+            durationMs: Math.round(performance.now() - startedAt),
+            errorCode: "ANALYSIS_FALLBACK_FAILED",
+            outcome: "failed",
+          });
+        }
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ...result,
+        analysisDispatch: dispatch.transport,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof InvalidJsonRequestError) {
       return invalidJsonResponse();

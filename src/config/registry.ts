@@ -26,7 +26,9 @@ export const JOB_REGISTRY = {
     initialStatus: PROCESSING_STATUS.queued,
     prompt: PROMPT_REGISTRY.captureStructuring,
     model: MODEL_REGISTRY.captureStructuring,
-    leaseSeconds: 120,
+    // Keep the database lease longer than the 300 second function budget so
+    // another delivery cannot reclaim an actively-running OpenAI request.
+    leaseSeconds: 330,
     maxAttempts: 3,
     maxManualAttempts: 10,
     maxBatchSize: 5,
@@ -41,6 +43,20 @@ export const JOB_REGISTRY = {
       needsReviewThreshold: 0.55,
     },
   },
+} as const;
+
+export const ANALYSIS_QUEUE_REGISTRY = {
+  topic: "capture-analysis",
+  eventType: "capture.created",
+  schemaVersion: 1,
+  retentionSeconds: 86_400,
+  visibilityTimeoutSeconds: 360,
+  // Transport delivery failures (OIDC, network, service initialization) can
+  // happen before a database attempt is recorded. Keep this budget larger
+  // than the analysis attempt budget so transient infrastructure failures do
+  // not strand an otherwise untouched processing job.
+  maxDeliveries: 10,
+  maxConcurrency: 2,
 } as const;
 
 export const JOB_SQL_PARITY_MARKER = {

@@ -6,8 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "clean:next": "node scripts/clean-next-output.mjs",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "npm run clean:next && next typegen && tsc --noEmit --pretty false --incremental false",
+    "validate:wcj": "node scripts/wcj/cli.mjs",
+    "validate:wcj:json": "node scripts/wcj/cli.mjs --format json",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run validate:wcj && npm run build"
   },
   "dependencies": {
     "@expo-google-fonts/noto-sans-kr": "^0.4.3",
@@ -16,6 +21,7 @@
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.3",
     "@tanstack/react-query": "^5.101.2",
+    "@vercel/queue": "^0.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
@@ -36,6 +42,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vercel/config": "^0.5.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",

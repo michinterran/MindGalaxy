@@ -44,15 +44,20 @@ export async function failAnalysisJob(
     registry.retryBaseDelaySeconds *
     Math.max(1, Math.min(job.attemptNumber, registry.maxAttempts));
 
-  const { error } = await supabase.rpc("fail_capture_analysis_job", {
-    p_job_id: job.jobId,
-    p_attempt_id: job.attemptId,
-    p_worker_id: workerId,
-    p_error_code: errorCode,
-    p_error_message: null,
-    p_retry_delay_seconds: delay,
-    p_max_attempts: registry.maxAttempts,
-  });
+  const { data, error } = await supabase
+    .rpc("fail_capture_analysis_job", {
+      p_job_id: job.jobId,
+      p_attempt_id: job.attemptId,
+      p_worker_id: workerId,
+      p_error_code: errorCode,
+      p_error_message: null,
+      p_retry_delay_seconds: delay,
+      p_max_attempts: registry.maxAttempts,
+    })
+    .single();
 
-  return { recorded: !error };
+  return {
+    recorded: !error && Boolean(data),
+    status: data?.status ?? null,
+  };
 }

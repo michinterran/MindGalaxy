@@ -7,7 +7,16 @@ import {
 } from "@/features/analysis/model/extraction-schema";
 import { verifyEvidenceQuote } from "@/features/analysis/model/evidence";
 import { scoreAnalysis } from "@/features/analysis/model/scoring";
-import { claimAnalysisJob } from "@/features/analysis/worker/claim";
+import {
+  analysisErrorCode,
+  logAnalysisEvent,
+} from "@/features/analysis/observability";
+import {
+  claimAnalysisJob,
+  claimAnalysisJobById,
+  getAnalysisJobState,
+  type AnalysisJobState,
+} from "@/features/analysis/worker/claim";
 import { embedCaptureAnalysis } from "@/features/analysis/worker/embeddings";
 import {
   failAnalysisJob,
@@ -95,15 +104,68 @@ function attachVerifiedEvidence(
   };
 }
 
+export type CaptureAnalysisRunDisposition =
+  | "batch"
+  | "processed"
+  | "terminal"
+  | "pending";
+
+export type CaptureAnalysisRunOptions = {
+  maxAttempts?: number;
+  rethrowFailures?: boolean;
+  jobId?: string;
+  expectedCaptureId?: string;
+  expectedWorkspaceId?: string;
+};
+
+export class CaptureAnalysisRunError extends Error {
+  constructor(
+    message: string,
+    readonly jobId: string,
+    readonly terminal: boolean,
+  ) {
+    super(message);
+    this.name = "CaptureAnalysisRunError";
+  }
+}
+
+function assertEventCorrelation(
+  state: AnalysisJobState,
+  options: CaptureAnalysisRunOptions,
+) {
+  if (
+    (options.expectedCaptureId &&
+      state.captureId !== options.expectedCaptureId) ||
+    (options.expectedWorkspaceId &&
+      state.workspaceId !== options.expectedWorkspaceId)
+  ) {
+    throw new Error("ANALYSIS_QUEUE_CORRELATION_MISMATCH");
+  }
+}
+
+function isTerminalState(
+  state: AnalysisJobState,
+  maxAttempts?: number,
+) {
+  if (state.status === "completed" || state.status === "needs_review") {
+    return true;
+  }
+
+  const retryLimit = Math.min(
+    state.maxAttempts,
+    maxAttempts ?? state.maxAttempts,
+  );
+  return state.status === "failed" && state.retryCount >= retryLimit;
+}
+
 export async function runCaptureAnalysisBatch(
   limit: number,
-  options: { maxAttempts?: number } = {},
+  options: CaptureAnalysisRunOptions = {},
 ) {
   const safeLimit = Math.min(Math.max(limit, 1), JOB_REGISTRY.captureStructuring.maxBatchSize);
   const supabase = getSupabaseServiceRoleClient();
-  const openai = getOpenAIClient();
 
-  if (!supabase || !openai) {
+  if (!supabase) {
     throw new Error("ANALYSIS_WORKER_NOT_CONFIGURED");
   }
 
@@ -114,21 +176,90 @@ export async function runCaptureAnalysisBatch(
     needsReview: 0,
     failed: 0,
     jobIds: [] as string[],
+    errorCodes: [] as string[],
+    disposition: (options.jobId ? "pending" : "batch") as CaptureAnalysisRunDisposition,
+    status: null as string | null,
   };
 
-  for (let index = 0; index < safeLimit; index += 1) {
-    const job = await claimAnalysisJob(
-      supabase,
-      workerId,
-      options.maxAttempts,
-    );
+  if (options.jobId) {
+    const state = await getAnalysisJobState(supabase, options.jobId);
 
-    if (!job) break;
+    if (!state) {
+      throw new Error("ANALYSIS_JOB_NOT_FOUND");
+    }
+
+    assertEventCorrelation(state, options);
+    results.status = state.status;
+
+    if (isTerminalState(state, options.maxAttempts)) {
+      results.disposition = "terminal";
+      return results;
+    }
+  }
+
+  const openai = getOpenAIClient();
+
+  if (!openai) {
+    throw new Error("ANALYSIS_WORKER_NOT_CONFIGURED");
+  }
+
+  for (let index = 0; index < safeLimit; index += 1) {
+    const job = options.jobId
+      ? await claimAnalysisJobById(
+          supabase,
+          options.jobId,
+          workerId,
+          options.maxAttempts,
+        )
+      : await claimAnalysisJob(
+          supabase,
+          workerId,
+          options.maxAttempts,
+        );
+
+    if (!job) {
+      if (options.jobId) {
+        const state = await getAnalysisJobState(supabase, options.jobId);
+
+        if (!state) {
+          throw new Error("ANALYSIS_JOB_NOT_FOUND");
+        }
+
+        assertEventCorrelation(state, options);
+        results.status = state.status;
+        results.disposition = isTerminalState(state, options.maxAttempts)
+          ? "terminal"
+          : "pending";
+      }
+      break;
+    }
 
     results.claimed += 1;
     results.jobIds.push(job.jobId);
+    results.disposition = options.jobId ? "processed" : "batch";
+    results.status = "running";
+    const jobStartedAt = performance.now();
+
+    logAnalysisEvent("info", {
+      event: "job.claimed",
+      stage: "claim",
+      jobId: job.jobId,
+      captureId: job.captureId,
+      workspaceId: job.workspaceId,
+      attemptNumber: job.attemptNumber,
+      outcome: "running",
+    });
 
     try {
+      const extractionStartedAt = performance.now();
+      logAnalysisEvent("info", {
+        event: "stage.started",
+        stage: "extract",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+      });
+
       const response = await openai.responses.parse({
         model: job.model,
         input: [
@@ -150,6 +281,15 @@ export async function runCaptureAnalysisBatch(
         throw new Error("ANALYSIS_EMPTY_PARSED_OUTPUT");
       }
 
+      logAnalysisEvent("info", {
+        event: "stage.completed",
+        stage: "extract",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+        durationMs: Math.round(performance.now() - extractionStartedAt),
+      });
+
       const { analysis, score } = attachVerifiedEvidence(
         response.output_parsed,
         job.rawText,
@@ -159,8 +299,33 @@ export async function runCaptureAnalysisBatch(
         job.jobId,
         job.attemptId,
       );
+      const embeddingStartedAt = performance.now();
+      logAnalysisEvent("info", {
+        event: "stage.started",
+        stage: "embed",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+      });
       const analysisWithEmbeddings = await embedCaptureAnalysis(openai, job, analysis);
 
+      logAnalysisEvent("info", {
+        event: "stage.completed",
+        stage: "embed",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+        durationMs: Math.round(performance.now() - embeddingStartedAt),
+      });
+
+      const persistStartedAt = performance.now();
+      logAnalysisEvent("info", {
+        event: "stage.started",
+        stage: "persist",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+      });
       await persistAnalysisResult(
         supabase,
         job,
@@ -169,13 +334,74 @@ export async function runCaptureAnalysisBatch(
         score,
       );
 
+      logAnalysisEvent("info", {
+        event: "stage.completed",
+        stage: "persist",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+        durationMs: Math.round(performance.now() - persistStartedAt),
+      });
+
       if (score.reviewRequired) results.needsReview += 1;
       else results.completed += 1;
-    } catch {
+      results.status = score.reviewRequired ? "needs_review" : "completed";
+
+      logAnalysisEvent("info", {
+        event: "job.completed",
+        stage: "complete",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        workspaceId: job.workspaceId,
+        attemptNumber: job.attemptNumber,
+        durationMs: Math.round(performance.now() - jobStartedAt),
+        outcome: score.reviewRequired ? "needs_review" : "completed",
+      });
+    } catch (error) {
+      const errorCode = analysisErrorCode(error);
       results.failed += 1;
-      await failAnalysisJob(supabase, job, workerId, "ANALYSIS_RUN_FAILED");
+      results.errorCodes.push(errorCode);
+      const failure = await failAnalysisJob(
+        supabase,
+        job,
+        workerId,
+        errorCode,
+      );
+      results.status = failure.status;
+
+      logAnalysisEvent("error", {
+        event: "job.failed",
+        stage: "failure",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        workspaceId: job.workspaceId,
+        attemptNumber: job.attemptNumber,
+        durationMs: Math.round(performance.now() - jobStartedAt),
+        errorCode: failure.recorded
+          ? errorCode
+          : "ANALYSIS_FAILURE_PERSIST_FAILED",
+        outcome: failure.recorded ? "retryable" : "unrecorded",
+      });
+
+      if (options.rethrowFailures) {
+        throw new CaptureAnalysisRunError(
+          failure.recorded ? errorCode : "ANALYSIS_FAILURE_PERSIST_FAILED",
+          job.jobId,
+          failure.status === "failed",
+        );
+      }
     }
   }
 
   return results;
+}
+
+export async function runCaptureAnalysisJob(
+  jobId: string,
+  options: Omit<CaptureAnalysisRunOptions, "jobId"> = {},
+) {
+  return runCaptureAnalysisBatch(1, {
+    ...options,
+    jobId,
+  });
 }

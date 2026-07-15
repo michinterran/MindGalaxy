@@ -8,6 +8,8 @@ import {
   FileText,
   Workflow,
 } from "lucide-react";
+import { KnowledgeMapActivityBanner } from "@/features/knowledge-map/components/knowledge-map-activity-banner";
+import { KnowledgeMapReadiness } from "@/features/knowledge-map/components/knowledge-map-readiness";
 import {
   GRAPH_TONE_COLORS,
   type GraphProjection,
@@ -18,6 +20,10 @@ import {
   captureSourceLabel,
   processingStatusLabel,
 } from "@/lib/i18n/labels";
+import {
+  selectKnowledgeMapActivityCapture,
+  type RecentCapture,
+} from "@/features/knowledge-map/model/readiness";
 
 const DynamicMindMapView = dynamic(
   () =>
@@ -44,15 +50,6 @@ const DynamicGalaxyView = dynamic(
     ssr: false,
   },
 );
-
-export type RecentCapture = {
-  id: string;
-  title: string | null;
-  rawTextLength: number;
-  sourceKind: string;
-  createdAt: string;
-  processingStatus?: string | null;
-};
 
 export type ViewMode = "mindmap" | "galaxy" | "list";
 
@@ -83,6 +80,8 @@ export function KnowledgeMapClient({
   isDemo,
   locale,
   onNodePositionChange,
+  onNewCapture,
+  onRetryCapture,
   onSelect,
   onSelectCapture,
   recentCaptures,
@@ -97,6 +96,8 @@ export function KnowledgeMapClient({
     nodeId: string,
     position: { x: number; y: number },
   ) => Promise<void>;
+  onNewCapture?: () => void;
+  onRetryCapture?: (jobId: string) => Promise<void>;
   onSelect: (id: string) => void;
   onSelectCapture?: (captureId: string) => void;
   recentCaptures: RecentCapture[];
@@ -106,20 +107,12 @@ export function KnowledgeMapClient({
 }) {
   if (!graph.nodes.length && viewMode !== "list") {
     return (
-      <section className="canvas-stage empty-graph-stage">
-        <h2>{t(locale, "workspace.graph.emptyTitle")}</h2>
-        <p>{t(locale, "workspace.graph.emptyDescription")}</p>
-      </section>
-    );
-  }
-
-  if (viewMode === "galaxy") {
-    return (
-      <DynamicGalaxyView
-        graph={graph}
+      <KnowledgeMapReadiness
         locale={locale}
-        onSelect={onSelect}
-        selectedId={selectedId}
+        onNewCapture={onNewCapture}
+        onOpenCapture={onSelectCapture}
+        onRetry={onRetryCapture}
+        recentCaptures={recentCaptures}
       />
     );
   }
@@ -135,15 +128,40 @@ export function KnowledgeMapClient({
     );
   }
 
+  const activityCapture = selectKnowledgeMapActivityCapture(recentCaptures);
+  const mapView = viewMode === "galaxy" ? (
+      <DynamicGalaxyView
+        graph={graph}
+        locale={locale}
+        onSelect={onSelect}
+        selectedId={selectedId}
+      />
+    ) : (
+      <DynamicMindMapView
+        graph={graph}
+        isDemo={isDemo}
+        locale={locale}
+        onNodePositionChange={onNodePositionChange}
+        onSelect={onSelect}
+        selectedId={selectedId}
+      />
+    );
+
   return (
-    <DynamicMindMapView
-      graph={graph}
-      isDemo={isDemo}
-      locale={locale}
-      onNodePositionChange={onNodePositionChange}
-      onSelect={onSelect}
-      selectedId={selectedId}
-    />
+    <div
+      className={`knowledge-map-live-stage ${activityCapture ? "knowledge-map-live-stage--active" : ""}`}
+    >
+      {activityCapture ? (
+        <KnowledgeMapActivityBanner
+          capture={activityCapture}
+          key={activityCapture.id}
+          locale={locale}
+          onOpenCapture={onSelectCapture}
+          onRetry={onRetryCapture}
+        />
+      ) : null}
+      {mapView}
+    </div>
   );
 }
 
