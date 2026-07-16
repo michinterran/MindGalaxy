@@ -21,6 +21,19 @@ export function isMindMapActivationKey(key: string) {
   return key === "Enter" || key === " ";
 }
 
+const KEYBOARD_NUDGE_DISTANCE = 24;
+
+export function mindMapKeyboardNudge(key: string, altKey: boolean) {
+  if (!altKey) return null;
+
+  if (key === "ArrowLeft") return { x: -KEYBOARD_NUDGE_DISTANCE, y: 0 };
+  if (key === "ArrowRight") return { x: KEYBOARD_NUDGE_DISTANCE, y: 0 };
+  if (key === "ArrowUp") return { x: 0, y: -KEYBOARD_NUDGE_DISTANCE };
+  if (key === "ArrowDown") return { x: 0, y: KEYBOARD_NUDGE_DISTANCE };
+
+  return null;
+}
+
 export function toggleMindMapBranch(
   nodeId: string,
   isExpanded: boolean,

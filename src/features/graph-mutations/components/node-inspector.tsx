@@ -9,13 +9,18 @@ import {
   useState,
 } from "react";
 import {
+  Bot,
   Check,
   CircleDot,
+  FileText,
+  Layers3,
   Link2,
   Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   Trash2,
+  UserRound,
   X,
 } from "lucide-react";
 import type {
@@ -29,7 +34,11 @@ import {
   type UndoableDelete,
 } from "@/features/graph-mutations/model/undoable-delete";
 import { GRAPH_INTERACTION_REGISTRY } from "@/config/registry";
+import { connectionCandidatesForNode } from "@/features/graph-mutations/model/connection-candidates";
 import { t, type Locale } from "@/lib/i18n";
+import { edgeKindLabel } from "@/lib/i18n/labels";
+import { EDGE_KINDS } from "@/lib/graph/schema";
+import type { EdgeKind } from "@/types/domain";
 
 type InspectorTab = "overview" | "evidence" | "connections";
 type MutationStatus = "idle" | "saving" | "success" | "error";
@@ -40,6 +49,7 @@ export type NodeInspectorActions = {
   createEdge: (input: {
     sourceNodeId: string;
     targetNodeId: string;
+    kind: EdgeKind;
     label?: string;
   }) => Promise<void>;
   deleteEdge: (edgeId: string) => Promise<void>;
@@ -58,17 +68,27 @@ function linkedNodeId(edge: GraphEdge, nodeId: string) {
   return edge.sourceNodeId === nodeId ? edge.targetNodeId : edge.sourceNodeId;
 }
 
+function EdgeOriginIcon({ origin }: { origin: NonNullable<GraphEdge["origin"]> }) {
+  if (origin === "ai") return <Bot aria-hidden="true" className="size-3" />;
+  if (origin === "user") {
+    return <UserRound aria-hidden="true" className="size-3" />;
+  }
+  return <Layers3 aria-hidden="true" className="size-3" />;
+}
+
 export function NodeInspector({
   actions,
   graph,
   locale,
   onClose,
+  onOpenCapture,
   selectedId,
 }: {
   actions: NodeInspectorActions;
   graph: GraphProjection;
   locale: Locale;
   onClose: () => void;
+  onOpenCapture: (captureId: string) => void;
   selectedId: string;
 }) {
   const node = graph.nodes.find((candidate) => candidate.id === selectedId) ?? null;
@@ -76,11 +96,16 @@ export function NodeInspector({
   const [title, setTitle] = useState(node?.title ?? "");
   const [summary, setSummary] = useState(node?.summary ?? "");
   const [status, setStatus] = useState<MutationStatus>("idle");
+  const [canRetry, setCanRetry] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isPendingDeletion, setIsPendingDeletion] = useState(false);
   const [targetNodeId, setTargetNodeId] = useState("");
+  const [edgeKind, setEdgeKind] = useState<EdgeKind>(
+    GRAPH_INTERACTION_REGISTRY.defaultEdgeKind,
+  );
   const [edgeLabel, setEdgeLabel] = useState("");
   const pendingDeleteRef = useRef<UndoableDelete | null>(null);
+  const retryActionRef = useRef<(() => Promise<void>) | null>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const tabIdPrefix = useId();
 
@@ -104,10 +129,9 @@ export function NodeInspector({
       );
   }, [graph.edges, graph.nodes, node]);
 
-  const connectionCandidates = graph.nodes.filter(
-    (candidate) =>
-      candidate.id !== selectedId &&
-      !linkedItems.some((item) => item.node.id === candidate.id),
+  const connectionCandidates = useMemo(
+    () => connectionCandidatesForNode(graph.nodes, graph.edges, selectedId),
+    [graph.edges, graph.nodes, selectedId],
   );
 
   useEffect(
@@ -125,19 +149,32 @@ export function NodeInspector({
 
   if (!node) return null;
 
-  async function saveNode() {
-    if (!title.trim()) return;
-
+  async function runMutation(
+    action: () => Promise<void>,
+    onSuccess?: () => void,
+  ) {
+    retryActionRef.current = null;
+    setCanRetry(false);
     setStatus("saving");
     try {
-      await actions.updateNode(selectedId, {
-        title: title.trim(),
-        summary: summary.trim() || null,
-      });
+      await action();
       setStatus("success");
+      onSuccess?.();
     } catch {
+      retryActionRef.current = () => runMutation(action, onSuccess);
+      setCanRetry(true);
       setStatus("error");
     }
+  }
+
+  function saveNode() {
+    if (!title.trim()) return;
+    void runMutation(() =>
+      actions.updateNode(selectedId, {
+        title: title.trim(),
+        summary: summary.trim() || null,
+      }),
+    );
   }
 
   function scheduleDelete() {
@@ -147,16 +184,13 @@ export function NodeInspector({
     pendingDeleteRef.current = scheduleUndoableDelete(
       async () => {
         setIsPendingDeletion(false);
-        setStatus("saving");
-        try {
-          await actions.deleteNode(selectedId);
-          pendingDeleteRef.current = null;
-          onClose();
-        } catch {
-          pendingDeleteRef.current = null;
-          setIsPendingDeletion(false);
-          setStatus("error");
-        }
+        await runMutation(
+          () => actions.deleteNode(selectedId),
+          () => {
+            pendingDeleteRef.current = null;
+            onClose();
+          },
+        );
       },
       GRAPH_INTERACTION_REGISTRY.deleteUndoDelayMs,
     );
@@ -169,31 +203,29 @@ export function NodeInspector({
     setIsPendingDeletion(false);
   }
 
-  async function addConnection() {
+  function addConnection() {
     if (!targetNodeId) return;
-    setStatus("saving");
-    try {
-      await actions.createEdge({
-        sourceNodeId: selectedId,
-        targetNodeId,
-        label: edgeLabel.trim() || undefined,
-      });
-      setTargetNodeId("");
-      setEdgeLabel("");
-      setStatus("success");
-    } catch {
-      setStatus("error");
-    }
+    void runMutation(
+      () =>
+        actions.createEdge({
+          sourceNodeId: selectedId,
+          targetNodeId,
+          kind: edgeKind,
+          label: edgeLabel.trim() || undefined,
+        }),
+      () => {
+        setTargetNodeId("");
+        setEdgeLabel("");
+      },
+    );
   }
 
-  async function removeConnection(edgeId: string) {
-    setStatus("saving");
-    try {
-      await actions.deleteEdge(edgeId);
-      setStatus("success");
-    } catch {
-      setStatus("error");
-    }
+  function removeConnection(edgeId: string) {
+    void runMutation(() => actions.deleteEdge(edgeId));
+  }
+
+  function retryMutation() {
+    void retryActionRef.current?.();
   }
 
   function handleTabKeyDown(
@@ -326,6 +358,16 @@ export function NodeInspector({
             <blockquote>
               {node.evidenceSnippet ?? t(locale, "workspace.inspector.noEvidence")}
             </blockquote>
+            {node.captureId ? (
+              <button
+                className="node-evidence__source-action secondary-button"
+                onClick={() => onOpenCapture(node.captureId as string)}
+                type="button"
+              >
+                <FileText aria-hidden="true" className="size-4" />
+                {t(locale, "workspace.inspector.openSource")}
+              </button>
+            ) : null}
         </section>
 
         <section
@@ -337,66 +379,137 @@ export function NodeInspector({
             tabIndex={0}
           >
             <div className="connection-list">
-              {linkedItems.map((item) => (
-                <div key={item.edge.id}>
-                  <span
-                    style={{
-                      backgroundColor:
-                        GRAPH_TONE_COLORS[item.edge.tone ?? item.node.tone],
-                    }}
-                  />
-                  <p>
-                    <strong>{item.edge.label ?? t(locale, "graph.edge.related")}</strong>
-                    {item.node.title}
-                  </p>
-                  <button
-                    aria-label={t(locale, "workspace.inspector.removeConnection", {
-                      title: item.node.title,
-                    })}
-                    className="icon-button icon-button--compact"
-                    disabled={isPendingDeletion || status === "saving"}
-                    onClick={() => removeConnection(item.edge.id)}
-                    type="button"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              ))}
+              {linkedItems.length ? (
+                linkedItems.map((item) => {
+                  const origin = item.edge.origin ?? "system";
+                  return (
+                    <article className="relationship-card" key={item.edge.id}>
+                      <span
+                        aria-hidden="true"
+                        className="relationship-card__tone"
+                        style={{
+                          backgroundColor:
+                            GRAPH_TONE_COLORS[item.edge.tone ?? item.node.tone],
+                        }}
+                      />
+                      <div className="relationship-card__body">
+                        <div className="relationship-card__meta">
+                          <strong>
+                            {item.edge.kind
+                              ? edgeKindLabel(locale, item.edge.kind)
+                              : item.edge.label ?? t(locale, "graph.edge.related")}
+                          </strong>
+                          <span>
+                            <EdgeOriginIcon origin={origin} />
+                            {t(locale, `workspace.inspector.origin.${origin}`)}
+                          </span>
+                          {typeof item.edge.confidence === "number" ? (
+                            <span>
+                              {t(
+                                locale,
+                                "workspace.inspector.relationshipConfidence",
+                                {
+                                  confidence: `${Math.round(item.edge.confidence * 100)}%`,
+                                },
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p>{item.node.title}</p>
+                        {item.edge.label && item.edge.kind ? (
+                          <small>{item.edge.label}</small>
+                        ) : null}
+                        {item.edge.evidenceSnippet ? (
+                          <blockquote>
+                            <span>
+                              {t(locale, "workspace.inspector.relationshipEvidence")}
+                            </span>
+                            {item.edge.evidenceSnippet}
+                          </blockquote>
+                        ) : null}
+                      </div>
+                      {origin !== "system" ? (
+                        <button
+                          aria-label={t(
+                            locale,
+                            "workspace.inspector.removeConnection",
+                            { title: item.node.title },
+                          )}
+                          className="icon-button icon-button--compact"
+                          disabled={isPendingDeletion || status === "saving"}
+                          onClick={() => removeConnection(item.edge.id)}
+                          type="button"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      ) : null}
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="connection-list__empty">
+                  {t(locale, "workspace.inspector.noConnections")}
+                </p>
+              )}
             </div>
             <div className="connection-composer">
               <div className="connection-composer__title">
                 <Link2 className="size-4" />
                 <h3>{t(locale, "workspace.inspector.addConnection")}</h3>
               </div>
-              <select
-                aria-label={t(locale, "workspace.inspector.connectionTarget")}
-                disabled={isPendingDeletion || status === "saving"}
-                onChange={(event) => setTargetNodeId(event.target.value)}
-                value={targetNodeId}
-              >
-                <option value="">{t(locale, "workspace.inspector.connectionTarget")}</option>
-                {connectionCandidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.title}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label={t(locale, "workspace.inspector.connectionLabel")}
-                disabled={isPendingDeletion || status === "saving"}
-                onChange={(event) => setEdgeLabel(event.target.value)}
-                placeholder={t(locale, "workspace.inspector.connectionLabel")}
-                value={edgeLabel}
-              />
-              <button
-                className="secondary-button"
-                disabled={isPendingDeletion || !targetNodeId || status === "saving"}
-                onClick={addConnection}
-                type="button"
-              >
-                <Plus className="size-4" />
-                {t(locale, "workspace.inspector.add")}
-              </button>
+              {connectionCandidates.length ? (
+                <>
+                  <select
+                    aria-label={t(locale, "workspace.inspector.connectionTarget")}
+                    disabled={isPendingDeletion || status === "saving"}
+                    onChange={(event) => setTargetNodeId(event.target.value)}
+                    value={targetNodeId}
+                  >
+                    <option value="">
+                      {t(locale, "workspace.inspector.connectionTarget")}
+                    </option>
+                    {connectionCandidates.map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label={t(locale, "workspace.inspector.connectionKind")}
+                    disabled={isPendingDeletion || status === "saving"}
+                    onChange={(event) => setEdgeKind(event.target.value as EdgeKind)}
+                    value={edgeKind}
+                  >
+                    {EDGE_KINDS.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {edgeKindLabel(locale, kind)}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={t(locale, "workspace.inspector.connectionLabel")}
+                    disabled={isPendingDeletion || status === "saving"}
+                    onChange={(event) => setEdgeLabel(event.target.value)}
+                    placeholder={t(locale, "workspace.inspector.connectionLabel")}
+                    value={edgeLabel}
+                  />
+                  <button
+                    className="secondary-button"
+                    disabled={
+                      isPendingDeletion || !targetNodeId || status === "saving"
+                    }
+                    onClick={addConnection}
+                    type="button"
+                  >
+                    <Plus className="size-4" />
+                    {t(locale, "workspace.inspector.add")}
+                  </button>
+                </>
+              ) : (
+                <p className="connection-composer__empty" role="status">
+                  {t(locale, "workspace.inspector.noConnectionCandidates")}
+                </p>
+              )}
             </div>
         </section>
       </div>
@@ -408,6 +521,12 @@ export function NodeInspector({
       >
         {status === "success" ? <Check className="size-4" /> : null}
         {status !== "idle" ? t(locale, `workspace.mutation.${status}`) : null}
+        {status === "error" && canRetry ? (
+          <button onClick={retryMutation} type="button">
+            <RefreshCw aria-hidden="true" className="size-3" />
+            {t(locale, "workspace.inspector.retry")}
+          </button>
+        ) : null}
       </div>
 
       {isPendingDeletion ? (

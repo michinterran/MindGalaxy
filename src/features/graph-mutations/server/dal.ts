@@ -50,6 +50,7 @@ export type CreatedGraphEdge = {
   targetNodeId: string;
   kind: EdgeKind;
   label: string | null;
+  origin: "user";
   createdAt: string;
 };
 
@@ -224,6 +225,10 @@ export async function createGraphEdgeRecord(
       target_node_id: input.targetNodeId,
       kind: input.kind,
       label: input.label ?? null,
+      metadata: {
+        origin: "user",
+        createdBy: clients.userId,
+      } as Json,
     })
     .select("id, workspace_id, source_node_id, target_node_id, kind, label, created_at")
     .single();
@@ -243,6 +248,7 @@ export async function createGraphEdgeRecord(
     targetNodeId: edge.target_node_id,
     kind: edge.kind,
     label: edge.label,
+    origin: "user",
     createdAt: edge.created_at,
   };
 }

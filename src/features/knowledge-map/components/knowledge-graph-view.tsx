@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { CircleDot, FileText, Folder, RotateCcw } from "lucide-react";
+import {
+  CalendarDays,
+  CircleDot,
+  FileText,
+  Folder,
+  GitBranch,
+  Link2Off,
+  RotateCcw,
+} from "lucide-react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -17,8 +25,12 @@ import {
   directlyRelatedNodeIds,
   knowledgeGraphCategory,
   type KnowledgeGraphCategory,
+  type KnowledgeGraphHopDepth,
   type KnowledgeGraphNetworkNode,
+  type KnowledgeGraphOrphanMode,
+  type KnowledgeGraphScope,
 } from "@/features/knowledge-map/components/knowledge-graph-network";
+import { edgeOriginStrokeDasharray } from "@/features/knowledge-map/components/knowledge-graph-edge-presentation";
 import {
   GRAPH_TONE_COLORS,
   type GraphProjection,
@@ -42,6 +54,8 @@ const nodeTypes = {
 };
 
 const CATEGORY_ORDER = ["folder", "material", "concept"] as const;
+const HOP_DEPTHS = ["all", 1, 2, 3] as const satisfies readonly KnowledgeGraphHopDepth[];
+const EMPTY_HIGHLIGHTED_NODE_IDS = new Set<string>();
 
 const CATEGORY_ICONS = {
   folder: Folder,
@@ -56,7 +70,9 @@ function KnowledgeGraphPointNode({ data }: NodeProps<KnowledgeGraphNodeData>) {
     <div
       className={`knowledge-graph-node knowledge-graph-node--${data.category} ${
         data.selected ? "is-selected" : ""
-      } ${data.directlyRelated ? "is-related" : ""} ${data.dimmed ? "is-dimmed" : ""}`}
+      } ${data.directlyRelated ? "is-related" : ""} ${data.orphan ? "is-orphan" : ""} ${
+        data.searchHighlighted ? "is-search-match" : ""
+      } ${data.dimmed ? "is-dimmed" : ""}`}
     >
       <button
         aria-describedby={data.selected ? undefined : tooltipId}
@@ -106,8 +122,10 @@ export function KnowledgeGraphView({
   locale,
   onSelect,
   selectedId,
+  highlightedNodeIds = EMPTY_HIGHLIGHTED_NODE_IDS,
 }: {
   graph: GraphProjection;
+  highlightedNodeIds?: ReadonlySet<string>;
   locale: Locale;
   onSelect: (id: string) => void;
   selectedId: string | null;
@@ -117,13 +135,21 @@ export function KnowledgeGraphView({
   const [activeCategories, setActiveCategories] = useState<
     ReadonlySet<KnowledgeGraphCategory>
   >(new Set(CATEGORY_ORDER));
+  const [hopDepth, setHopDepth] = useState<KnowledgeGraphHopDepth>(2);
+  const [orphanMode, setOrphanMode] =
+    useState<KnowledgeGraphOrphanMode>("include");
+  const [scope, setScope] = useState<KnowledgeGraphScope>({});
   const network = useMemo(
     () =>
       buildKnowledgeGraphNetwork(graph, {
         categories: [...activeCategories],
         focusNodeId,
+        highlightedNodeIds,
+        hopDepth,
+        orphanMode,
+        scope,
       }),
-    [activeCategories, focusNodeId, graph],
+    [activeCategories, focusNodeId, graph, highlightedNodeIds, hopDepth, orphanMode, scope],
   );
   const relatedNodeIds = useMemo(
     () => directlyRelatedNodeIds(network.edges, selectedId),
@@ -165,6 +191,10 @@ export function KnowledgeGraphView({
       network.nodes.map((node) => {
         const selected = node.id === selectedId;
         const directlyRelated = relatedNodeIds.has(node.id);
+        const searchContextVisible = highlightedNodeIds.size > 0;
+        const selectLabel = t(locale, "workspace.graph2d.node.select", {
+          title: node.title,
+        });
 
         return {
           id: node.id,
@@ -173,21 +203,25 @@ export function KnowledgeGraphView({
           draggable: false,
           focusable: false,
           selectable: false,
-          zIndex: selected ? 20 : directlyRelated ? 10 : 0,
+          zIndex: selected ? 20 : directlyRelated || node.searchHighlighted ? 10 : 0,
           data: {
             ...node,
             connectionCount: connectionCounts.get(node.id) ?? 0,
             directlyRelated,
-            dimmed: Boolean(selectedId) && !selected && !directlyRelated,
+            dimmed:
+              (Boolean(selectedId) || searchContextVisible) &&
+              !selected &&
+              !directlyRelated &&
+              !node.searchHighlighted,
             focusLabel: t(locale, "workspace.graph2d.node.focus", {
               title: node.title,
             }),
             focusNode,
             onSelect,
             previewConnectionLabel: t(locale, "workspace.graph2d.preview.connections"),
-            selectLabel: t(locale, "workspace.graph2d.node.select", {
-              title: node.title,
-            }),
+            selectLabel: node.orphan
+              ? `${selectLabel}. ${t(locale, "workspace.graph2d.node.orphan")}`
+              : selectLabel,
             selected,
             showLabel: node.showLabel || selected || relatedLabelIds.has(node.id),
           },
@@ -196,6 +230,7 @@ export function KnowledgeGraphView({
     [
       connectionCounts,
       focusNode,
+      highlightedNodeIds,
       locale,
       network.nodes,
       onSelect,
@@ -207,9 +242,12 @@ export function KnowledgeGraphView({
   const edges: Edge[] = useMemo(
     () =>
       network.edges.map((edge) => {
-        const highlighted =
+        const selectedHighlight =
           Boolean(selectedId) &&
           (edge.sourceNodeId === selectedId || edge.targetNodeId === selectedId);
+        const searchHighlight =
+          highlightedNodeIds.has(edge.sourceNodeId) ||
+          highlightedNodeIds.has(edge.targetNodeId);
 
         return {
           id: edge.id,
@@ -219,12 +257,19 @@ export function KnowledgeGraphView({
           interactionWidth: 14,
           style: {
             stroke: GRAPH_TONE_COLORS[edge.tone ?? "source"],
-            strokeOpacity: highlighted ? 0.82 : selectedId ? 0.08 : 0.24,
-            strokeWidth: highlighted ? 1.8 : 0.8,
+            strokeOpacity: selectedHighlight
+              ? 0.82
+              : searchHighlight
+                ? 0.58
+                : selectedId || highlightedNodeIds.size
+                  ? 0.08
+                  : 0.24,
+            strokeWidth: selectedHighlight ? 1.8 : searchHighlight ? 1.35 : 0.8,
+            strokeDasharray: edgeOriginStrokeDasharray(edge.origin),
           },
         };
       }),
-    [network.edges, selectedId],
+    [highlightedNodeIds, network.edges, selectedId],
   );
   const categoryCounts = useMemo(() => {
     const counts = new Map<KnowledgeGraphCategory, number>(
@@ -236,6 +281,21 @@ export function KnowledgeGraphView({
     }
     return counts;
   }, [graph.nodes]);
+  const folderOptions = useMemo(
+    () =>
+      graph.nodes
+        .filter((node) => knowledgeGraphCategory(node) === "folder")
+        .sort((left, right) => left.title.localeCompare(right.title)),
+    [graph.nodes],
+  );
+  const topicOptions = useMemo(
+    () =>
+      graph.nodes
+        .filter((node) => node.id.startsWith("projection:topic:"))
+        .sort((left, right) => left.title.localeCompare(right.title)),
+    [graph.nodes],
+  );
+  const hasScope = Boolean(scope.dateKey || scope.folderNodeId || scope.topicNodeId);
 
   useEffect(() => {
     const instance = flowRef.current;
@@ -244,9 +304,10 @@ export function KnowledgeGraphView({
       void instance.fitView({ duration: 280, maxZoom: 1.02, padding: 0.2 });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeCategories, focusNodeId]);
+  }, [network]);
 
   function toggleCategory(category: KnowledgeGraphCategory) {
+    setFocusNodeId(null);
     setActiveCategories((current) => {
       const next = new Set(current);
       if (next.has(category)) {
@@ -277,6 +338,17 @@ export function KnowledgeGraphView({
             total: network.totalEligibleNodeCount,
             visible: network.nodes.length,
           })}
+          <div
+            aria-label={t(locale, "workspace.graph2d.origin.aria")}
+            className="knowledge-graph-origin-legend"
+          >
+            {(["user", "ai", "system"] as const).map((origin) => (
+              <span key={origin}>
+                <i aria-hidden="true" data-origin={origin} />
+                {t(locale, `workspace.graph2d.origin.${origin}`)}
+              </span>
+            ))}
+          </div>
         </div>
       </header>
       <ReactFlow
@@ -309,8 +381,9 @@ export function KnowledgeGraphView({
         />
         <Controls showInteractive={false} />
         <Panel className="knowledge-graph-filter" position="top-left">
-          <span>{t(locale, "workspace.graph2d.filter.aria")}</span>
-          <div aria-label={t(locale, "workspace.graph2d.filter.aria")} role="group">
+          <section>
+            <span>{t(locale, "workspace.graph2d.filter.aria")}</span>
+            <div aria-label={t(locale, "workspace.graph2d.filter.aria")} role="group">
             {CATEGORY_ORDER.map((category) => {
               const Icon = CATEGORY_ICONS[category];
               return (
@@ -327,7 +400,125 @@ export function KnowledgeGraphView({
                 </button>
               );
             })}
-          </div>
+            </div>
+          </section>
+          <section>
+            <span>
+              <GitBranch aria-hidden="true" className="size-3" />
+              {t(locale, "workspace.graph2d.hops.aria")}
+            </span>
+            <div aria-label={t(locale, "workspace.graph2d.hops.aria")} role="group">
+              {HOP_DEPTHS.map((depth) => (
+                <button
+                  aria-pressed={hopDepth === depth}
+                  className={hopDepth === depth ? "is-active" : ""}
+                  disabled={!network.focusNodeId}
+                  key={depth}
+                  onClick={() => setHopDepth(depth)}
+                  type="button"
+                >
+                  {depth === "all"
+                    ? t(locale, "workspace.graph2d.hops.all")
+                    : t(locale, "workspace.graph2d.hops.depth", { count: depth })}
+                </button>
+              ))}
+            </div>
+          </section>
+          <section>
+            <span>
+              <Link2Off aria-hidden="true" className="size-3" />
+              {t(locale, "workspace.graph2d.orphan.aria")}
+            </span>
+            <div aria-label={t(locale, "workspace.graph2d.orphan.aria")} role="group">
+              <button
+                aria-pressed={orphanMode === "include"}
+                className={orphanMode === "include" ? "is-active" : ""}
+                onClick={() => {
+                  setFocusNodeId(null);
+                  setOrphanMode("include");
+                }}
+                type="button"
+              >
+                {t(locale, "workspace.graph2d.orphan.include")}
+              </button>
+              <button
+                aria-pressed={orphanMode === "only"}
+                className={orphanMode === "only" ? "is-active" : ""}
+                onClick={() => {
+                  setFocusNodeId(null);
+                  setOrphanMode("only");
+                }}
+                type="button"
+              >
+                {t(locale, "workspace.graph2d.orphan.only")}
+                <small>{network.orphanCount}</small>
+              </button>
+            </div>
+          </section>
+          <section className="knowledge-graph-scope">
+            <span>
+              <CalendarDays aria-hidden="true" className="size-3" />
+              {t(locale, "workspace.graph2d.scope.aria")}
+            </span>
+            <label>
+              <span>{t(locale, "workspace.graph2d.scope.date")}</span>
+              <input
+                onChange={(event) => {
+                  setFocusNodeId(null);
+                  setScope((current) => ({
+                    ...current,
+                    dateKey: event.target.value || null,
+                  }));
+                }}
+                type="date"
+                value={scope.dateKey ?? ""}
+              />
+            </label>
+            <label>
+              <span>{t(locale, "workspace.graph2d.scope.folder")}</span>
+              <select
+                onChange={(event) => {
+                  setFocusNodeId(null);
+                  setScope((current) => ({
+                    ...current,
+                    folderNodeId: event.target.value || null,
+                  }));
+                }}
+                value={scope.folderNodeId ?? ""}
+              >
+                <option value="">
+                  {t(locale, "workspace.graph2d.scope.allFolders")}
+                </option>
+                {folderOptions.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{t(locale, "workspace.graph2d.scope.topic")}</span>
+              <select
+                onChange={(event) => {
+                  setFocusNodeId(null);
+                  setScope((current) => ({
+                    ...current,
+                    topicNodeId: event.target.value || null,
+                  }));
+                }}
+                value={scope.topicNodeId ?? ""}
+              >
+                <option value="">
+                  {t(locale, "workspace.graph2d.scope.allTopics")}
+                </option>
+                {topicOptions.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
           {focusNodeId ? (
             <button
               className="knowledge-graph-reset"
@@ -336,6 +527,19 @@ export function KnowledgeGraphView({
             >
               <RotateCcw aria-hidden="true" className="size-3" />
               {t(locale, "workspace.graph2d.focus.reset")}
+            </button>
+          ) : null}
+          {hasScope ? (
+            <button
+              className="knowledge-graph-reset"
+              onClick={() => {
+                setFocusNodeId(null);
+                setScope({});
+              }}
+              type="button"
+            >
+              <RotateCcw aria-hidden="true" className="size-3" />
+              {t(locale, "workspace.graph2d.scope.reset")}
             </button>
           ) : null}
         </Panel>

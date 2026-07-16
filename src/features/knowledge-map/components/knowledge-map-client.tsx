@@ -15,6 +15,7 @@ import {
   type GraphProjection,
   type GraphTone,
 } from "@/features/knowledge-map/model/graph";
+import { knowledgeGraphSearchResetKey } from "@/features/knowledge-map/components/knowledge-graph-network";
 import { formatDateTime, formatInteger, t, type Locale, type MessageKey } from "@/lib/i18n";
 import {
   captureSourceLabel,
@@ -90,6 +91,7 @@ function findNode(graph: GraphProjection, id: string | null) {
 
 export function KnowledgeMapClient({
   graph,
+  highlightedNodeIds,
   isDemo,
   locale,
   onNodePositionChange,
@@ -104,6 +106,7 @@ export function KnowledgeMapClient({
   viewMode,
 }: {
   graph: GraphProjection;
+  highlightedNodeIds?: ReadonlySet<string>;
   isDemo: boolean;
   locale: Locale;
   onNodePositionChange?: (
@@ -155,6 +158,8 @@ export function KnowledgeMapClient({
     ) : viewMode === "graph" ? (
       <DynamicKnowledgeGraphView
         graph={graph}
+        highlightedNodeIds={highlightedNodeIds}
+        key={knowledgeGraphSearchResetKey(highlightedNodeIds)}
         locale={locale}
         onSelect={onSelect}
         selectedId={selectedId}

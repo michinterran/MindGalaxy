@@ -19,6 +19,10 @@ import {
   searchKnowledge,
 } from "@/features/search/api/search-client";
 import type { SearchResult } from "@/features/search/model/schemas";
+import {
+  graphNodeIdsForSearchResults,
+  mapViewForSearchSelection,
+} from "@/features/workspace/model/search-graph-selection";
 import type { Locale } from "@/lib/i18n";
 
 export type WorkspaceController = ReturnType<typeof useWorkspaceController>;
@@ -66,6 +70,10 @@ export function useWorkspaceController({
   );
   const effectiveSelectedId =
     selectedId && graphNodeIds.has(selectedId) ? selectedId : null;
+  const searchHighlightedNodeIds = useMemo(
+    () => graphNodeIdsForSearchResults(graph.nodes, searchState.results),
+    [graph.nodes, searchState.results],
+  );
 
   useEffect(() => {
     if (!hasActiveJobs) return;
@@ -218,7 +226,7 @@ export function useWorkspaceController({
       setSelectedId(nodeId);
       setSelectedCaptureId(null);
       setActiveArea("knowledge");
-      setViewMode("mindmap");
+      setViewMode(mapViewForSearchSelection(activeArea, viewMode));
       closeSearchPanel();
       return;
     }
@@ -266,6 +274,7 @@ export function useWorkspaceController({
     refresh: router.refresh,
     searchInputRef,
     searchQuery,
+    searchHighlightedNodeIds,
     searchState,
     selectCapture,
     selectNode: setSelectedId,

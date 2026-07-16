@@ -1,4 +1,4 @@
-import type { ID } from "@/types/domain";
+import type { EdgeKind, ID } from "@/types/domain";
 
 export type ProjectionOnlyGraphNodeKind = "folder" | "capture" | "topic";
 export type ProjectionOnlyGraphNodeId =
@@ -36,6 +36,10 @@ export type GraphNode = {
   summary: string;
   tone: GraphTone;
   nodeKind?: string;
+  /** Source capture shared by the original material and its AI-derived nodes. */
+  captureId?: ID;
+  /** Saved-at time of the source capture, used by date-scoped graph projections. */
+  captureCreatedAt?: string;
   confidenceLabel?: string;
   evidenceSnippet?: string;
   savedPosition?: { x: number; y: number };
@@ -47,6 +51,20 @@ export type GraphEdge = {
   targetNodeId: ID;
   tone?: GraphTone;
   label?: string;
+  /** Exact semantic relationship persisted in `public.edges.kind`. */
+  kind?: EdgeKind;
+  /** Normalized 0..1 confidence from AI analysis, when available. */
+  confidence?: number;
+  /** Relationship-level evidence, distinct from either connected node. */
+  evidenceSnippet?: string;
+  /** Provenance of the relationship rather than its visual tone. */
+  origin?: "ai" | "user" | "system";
+  /** Analysis trace fields retained for auditability and source navigation. */
+  captureId?: ID;
+  model?: string;
+  promptVersion?: string;
+  processingJobId?: ID;
+  createdBy?: ID;
 };
 
 export type GraphSnapshot = {

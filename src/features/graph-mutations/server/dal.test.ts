@@ -110,4 +110,62 @@ describe("graph mutation DAL authorization", () => {
 
     expect(serviceFrom).toHaveBeenCalledTimes(1);
   });
+
+  it("persists the chosen relationship kind with user provenance", async () => {
+    const sourceNodeId = "22222222-2222-4222-8222-222222222222";
+    const targetNodeId = "33333333-3333-4333-8333-333333333333";
+    const membership = query({ data: { role: "editor" }, error: null });
+    const nodeRows = [
+        { id: sourceNodeId, workspace_id: workspaceId },
+        { id: targetNodeId, workspace_id: workspaceId },
+      ];
+    const nodes = query({
+      data: nodeRows,
+      error: null,
+    });
+    nodes.in.mockResolvedValue({ data: nodeRows, error: null } as never);
+    const edgeInsert = query({
+      data: {
+        id: "66666666-6666-4666-8666-666666666666",
+        workspace_id: workspaceId,
+        source_node_id: sourceNodeId,
+        target_node_id: targetNodeId,
+        kind: "supports",
+        label: "Supports this decision",
+        created_at: "2026-07-16T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const serviceFrom = vi
+      .fn()
+      .mockReturnValueOnce(nodes)
+      .mockReturnValueOnce(edgeInsert);
+
+    const result = await createGraphEdgeRecord(
+      {
+        actor: {
+          from: vi.fn().mockReturnValue(membership),
+        } as unknown as SupabaseClient<Database>,
+        service: {
+          from: serviceFrom,
+        } as unknown as SupabaseClient<Database>,
+        userId,
+      },
+      {
+        workspaceId,
+        sourceNodeId,
+        targetNodeId,
+        kind: "supports",
+        label: "Supports this decision",
+      },
+    );
+
+    expect(edgeInsert.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "supports",
+        metadata: { origin: "user", createdBy: userId },
+      }),
+    );
+    expect(result).toMatchObject({ kind: "supports", origin: "user" });
+  });
 });

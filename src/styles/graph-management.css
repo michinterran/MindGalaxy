@@ -101,8 +101,97 @@
   background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
-.connection-list > div {
-  grid-template-columns: 8px minmax(0, 1fr) 44px;
+.relationship-card {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--white) 2.6%, transparent);
+  padding: 10px;
+}
+
+.relationship-card__tone {
+  margin-top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.relationship-card__body {
+  min-width: 0;
+}
+
+.relationship-card__body > p,
+.relationship-card__body > small,
+.relationship-card__body blockquote {
+  margin: 0;
+}
+
+.relationship-card__body > p {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.relationship-card__body > small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.relationship-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.relationship-card__meta strong,
+.relationship-card__meta span {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.relationship-card__meta strong {
+  color: var(--foreground);
+}
+
+.relationship-card__body blockquote {
+  margin-top: 9px;
+  border-left: 2px solid var(--evidence);
+  padding-left: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.relationship-card__body blockquote span {
+  display: block;
+  color: var(--foreground);
+  font-weight: 750;
+}
+
+.connection-list__empty {
+  margin: 0;
+  border: 1px dashed var(--line-soft);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .icon-button--compact {
@@ -125,6 +214,16 @@
 .connection-composer__title h3 {
   margin: 0;
   font-size: 14px;
+}
+
+.connection-composer__empty {
+  margin: 0;
+  border: 1px dashed var(--line-soft);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .connection-composer input,
@@ -153,11 +252,33 @@
   line-height: 1.7;
 }
 
+.node-evidence__source-action {
+  width: 100%;
+}
+
 .mutation-status {
+  display: flex;
   min-height: 24px;
+  align-items: center;
+  gap: 7px;
   padding: 0 14px 10px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.mutation-status button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  padding: 0 9px;
+  font: inherit;
+  font-weight: 750;
 }
 
 .mutation-status--success {

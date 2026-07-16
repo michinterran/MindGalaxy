@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canPersistMindMapNodePosition,
   isMindMapActivationKey,
+  mindMapKeyboardNudge,
   mindMapBranchControls,
   toggleMindMapBranch,
 } from "@/features/knowledge-map/components/mind-map-interactions";
@@ -42,6 +43,15 @@ describe("mind map interaction helpers", () => {
     expect(isMindMapActivationKey("Enter")).toBe(true);
     expect(isMindMapActivationKey(" ")).toBe(true);
     expect(isMindMapActivationKey("Escape")).toBe(false);
+  });
+
+  it("provides an Alt plus arrow keyboard alternative for node positioning", () => {
+    expect(mindMapKeyboardNudge("ArrowLeft", true)).toEqual({ x: -24, y: 0 });
+    expect(mindMapKeyboardNudge("ArrowRight", true)).toEqual({ x: 24, y: 0 });
+    expect(mindMapKeyboardNudge("ArrowUp", true)).toEqual({ x: 0, y: -24 });
+    expect(mindMapKeyboardNudge("ArrowDown", true)).toEqual({ x: 0, y: 24 });
+    expect(mindMapKeyboardNudge("ArrowRight", false)).toBeNull();
+    expect(mindMapKeyboardNudge("Enter", true)).toBeNull();
   });
 
   it("separates branch expansion from node selection state", () => {

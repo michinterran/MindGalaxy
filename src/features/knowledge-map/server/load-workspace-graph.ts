@@ -40,6 +40,50 @@ function evidenceSnippet(metadata: Json): string | undefined {
   return typeof evidence.quote === "string" ? evidence.quote : undefined;
 }
 
+function jsonObject(metadata: Json) {
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? metadata
+    : null;
+}
+
+function metadataString(metadata: Json, key: string) {
+  const value = jsonObject(metadata)?.[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function edgeTrace(
+  metadata: Json,
+): Pick<
+  GraphEdge,
+  | "origin"
+  | "captureId"
+  | "model"
+  | "promptVersion"
+  | "processingJobId"
+  | "createdBy"
+> {
+  const explicitOrigin = metadataString(metadata, "origin");
+  const model = metadataString(metadata, "model");
+  const promptVersion = metadataString(metadata, "promptVersion");
+  const processingJobId = metadataString(metadata, "processingJobId");
+
+  return {
+    origin:
+      explicitOrigin === "ai" ||
+      explicitOrigin === "user" ||
+      explicitOrigin === "system"
+        ? explicitOrigin
+        : model || promptVersion || processingJobId
+          ? ("ai" as const)
+          : ("user" as const),
+    captureId: metadataString(metadata, "captureId"),
+    model,
+    promptVersion,
+    processingJobId,
+    createdBy: metadataString(metadata, "createdBy"),
+  };
+}
+
 const RECENT_CAPTURE_LIMIT = 60;
 const SOURCE_NODE_LIMIT = RECENT_CAPTURE_LIMIT;
 const SEMANTIC_NODE_LIMIT = 180;
@@ -150,11 +194,17 @@ export async function loadWorkspaceGraph(
   const { data: edges } = nodeIds.length
     ? await supabase
         .from("edges")
-        .select("id, source_node_id, target_node_id, kind, label")
+        .select(
+          "id, source_node_id, target_node_id, kind, label, confidence, evidence_snippet, metadata",
+        )
         .eq("workspace_id", workspaceId)
         .in("source_node_id", nodeIds)
         .limit(GRAPH_EDGE_LIMIT)
     : { data: [] };
+
+  const captureCreatedAtById = new Map(
+    captures.map((capture) => [capture.id, capture.created_at] as const),
+  );
 
   const graphNodes: GraphNode[] = nodes.map((node) => ({
     id: node.id,
@@ -163,6 +213,10 @@ export async function loadWorkspaceGraph(
     nodeKind: node.kind,
     summary: node.summary ?? "",
     tone: nodeTone(node.kind),
+    captureId: node.capture_id ?? undefined,
+    captureCreatedAt: node.capture_id
+      ? captureCreatedAtById.get(node.capture_id)
+      : undefined,
     confidenceLabel:
       typeof node.confidence === "number" ? `${Math.round(node.confidence * 100)}%` : undefined,
     evidenceSnippet: node.evidence_snippet ?? evidenceSnippet(node.metadata),
@@ -209,6 +263,8 @@ export async function loadWorkspaceGraph(
             ? "원문이 보존된 자료입니다. 자료 상세에서 전체 내용을 확인할 수 있습니다."
             : "Saved source material. Open the material detail to read the full content.",
         tone: "source" as const,
+        captureId: capture.id,
+        captureCreatedAt: capture.created_at,
       })),
   );
 
@@ -219,13 +275,22 @@ export async function loadWorkspaceGraph(
         validNodeIds.has(edge.source_node_id) &&
         validNodeIds.has(edge.target_node_id),
     )
-    .map((edge) => ({
-      id: edge.id,
-      sourceNodeId: edge.source_node_id,
-      targetNodeId: edge.target_node_id,
-      tone: edgeTone(edge.kind),
-      label: edge.label ?? undefined,
-    }));
+    .map((edge) => {
+      const trace = edgeTrace(edge.metadata);
+      return {
+        id: edge.id,
+        sourceNodeId: edge.source_node_id,
+        targetNodeId: edge.target_node_id,
+        tone: edgeTone(edge.kind),
+        label: edge.label ?? undefined,
+        kind: edge.kind,
+        confidence:
+          typeof edge.confidence === "number" ? edge.confidence : undefined,
+        evidenceSnippet:
+          edge.evidence_snippet ?? evidenceSnippet(edge.metadata),
+        ...trace,
+      };
+    });
 
   for (const folder of folders) {
     const sourceNodeId = folderGraphIdById.get(folder.parent_id ?? "");
@@ -237,6 +302,8 @@ export async function loadWorkspaceGraph(
       targetNodeId,
       tone: "context",
       label: locale === "ko" ? "하위 폴더" : "Subfolder",
+      kind: "contains",
+      origin: "system",
     });
   }
 
@@ -253,6 +320,9 @@ export async function loadWorkspaceGraph(
       targetNodeId,
       tone: "context",
       label: locale === "ko" ? "포함" : "Contains",
+      kind: "contains",
+      origin: "system",
+      captureId: capture.id,
     });
   }
 
@@ -271,6 +341,9 @@ export async function loadWorkspaceGraph(
       targetNodeId,
       tone: "topic",
       label: locale === "ko" ? "주제" : "Topic",
+      kind: "relates_to",
+      origin: "system",
+      captureId: assignment.capture_id,
     });
   }
 

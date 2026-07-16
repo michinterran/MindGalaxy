@@ -7,7 +7,6 @@ import { CapturePanel, type CaptureDraft } from "@/components/capture-panel";
 import { WorkspaceToolbar } from "@/components/workspace-toolbar";
 import {
   FEATURE_REGISTRY,
-  GRAPH_INTERACTION_REGISTRY,
   WORKSPACE_REGISTRY,
 } from "@/config/registry";
 import { ExportPanel } from "@/features/export/components/export-panel";
@@ -171,12 +170,12 @@ export function KnowledgeWorkspace({
   const positionSaveQueueRef = useRef(new Map<string, Promise<void>>());
   const nodeActions = useMemo<NodeInspectorActions>(
     () => ({
-      createEdge: async ({ label, sourceNodeId, targetNodeId }) => {
+      createEdge: async ({ kind, label, sourceNodeId, targetNodeId }) => {
         await createGraphEdge({
           workspaceId: workspace.id,
           sourceNodeId,
           targetNodeId,
-          kind: GRAPH_INTERACTION_REGISTRY.defaultEdgeKind,
+          kind,
           label: label ?? null,
         });
         refreshWorkspace();
@@ -364,6 +363,7 @@ export function KnowledgeWorkspace({
               ) : (
                 <KnowledgeMapClient
                   graph={projection}
+                  highlightedNodeIds={controller.searchHighlightedNodeIds}
                   isDemo={graphState.isDemo}
                   locale={locale}
                   onNodePositionChange={saveNodePosition}
@@ -410,6 +410,7 @@ export function KnowledgeWorkspace({
               key={controller.effectiveSelectedId}
               locale={locale}
               onClose={controller.closeNodeInspector}
+              onOpenCapture={controller.selectCapture}
               selectedId={controller.effectiveSelectedId}
             />
           ) : null}

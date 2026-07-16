@@ -121,6 +121,13 @@ export function MindMapView({
 }) {
   const stageRef = useRef<HTMLElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<MindMapNodeData> | null>(null);
+  const [positionStatus, setPositionStatus] = useState<
+    "idle" | "saving" | "success" | "error"
+  >("idle");
+  const positionSaverRef = useRef<
+    KeyedDebouncer<string, PendingNodePosition> | null
+  >(null);
+  const positionAttemptRef = useRef(0);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(selectedId);
   const [branchState, setBranchState] = useState<MindMapBranchState>({
     collapsedNodeIds: new Set(),
@@ -180,57 +187,85 @@ export function MindMapView({
     setBranchState((current) => toggleMindMapBranch(nodeId, isExpanded, current));
   }, []);
 
+  const persistNodePosition = useCallback(
+    (nodeId: string, position: NodePosition) => {
+      const attempt = positionAttemptRef.current + 1;
+      positionAttemptRef.current = attempt;
+      if (
+        !canPersistMindMapNodePosition({
+          hasPersistenceHandler: Boolean(onNodePositionChange),
+          isDemo,
+          nodeId,
+        }) ||
+        !positionSaverRef.current
+      ) {
+        setPositionStatus("idle");
+        return;
+      }
+      setPositionStatus("saving");
+      positionSaverRef.current.schedule(nodeId, { attempt, position });
+    },
+    [isDemo, onNodePositionChange],
+  );
+
   const projectedNodes: Node<MindMapNodeData>[] = useMemo(
     () =>
-      mindMap.nodes.map((node) => ({
-        id: node.id,
-        type: "mindNode",
-        position: node.position,
-        data: {
-          ...node,
-          collapseLabel: t(locale, "workspace.graph.branch.collapse", {
-            title: node.title,
-          }),
-          expandLabel: t(locale, "workspace.graph.branch.expand", {
-            count: node.hiddenChildCount,
-            title: node.title,
-          }),
-          focusLabel: t(locale, "workspace.graph.node.focus", {
-            title: node.title,
-          }),
-          highlighted: highlightedNodeIds.has(node.id),
-          onFocus: handleNodeFocus,
-          onSelect: handleNodeSelect,
-          onToggleBranch: handleToggleBranch,
-          selectLabel: t(locale, "workspace.graph.node.select", {
-            title: node.title,
-          }),
-          selected: selectedId === node.id,
-        },
-        draggable: true,
-        focusable: false,
-        selectable: false,
-      })),
+      mindMap.nodes.map((node) => {
+        const canMove = canPersistMindMapNodePosition({
+          hasPersistenceHandler: Boolean(onNodePositionChange),
+          isDemo,
+          nodeId: node.id,
+        });
+
+        return {
+          id: node.id,
+          type: "mindNode",
+          position: node.position,
+          data: {
+            ...node,
+            canMove,
+            collapseLabel: t(locale, "workspace.graph.branch.collapse", {
+              title: node.title,
+            }),
+            expandLabel: t(locale, "workspace.graph.branch.expand", {
+              count: node.hiddenChildCount,
+              title: node.title,
+            }),
+            focusLabel: t(locale, "workspace.graph.node.focus", {
+              title: node.title,
+            }),
+            highlighted: highlightedNodeIds.has(node.id),
+            onFocus: handleNodeFocus,
+            onPositionChange: persistNodePosition,
+            onSelect: handleNodeSelect,
+            onToggleBranch: handleToggleBranch,
+            positionHint: t(locale, "workspace.graph.node.positionHint"),
+            selectLabel: t(locale, "workspace.graph.node.select", {
+              title: node.title,
+            }),
+            selected: selectedId === node.id,
+          },
+          draggable: canMove,
+          focusable: false,
+          selectable: false,
+        };
+      }),
     [
       handleNodeFocus,
       handleNodeSelect,
       handleToggleBranch,
       highlightedNodeIds,
+      isDemo,
       locale,
       mindMap.nodes,
+      onNodePositionChange,
+      persistNodePosition,
       selectedId,
     ],
   );
   const [nodes, setNodes, onNodesChange] =
     useNodesState<MindMapNodeData>(projectedNodes);
   const previousRootIdRef = useRef(mindMap.rootId);
-  const [positionStatus, setPositionStatus] = useState<
-    "idle" | "saving" | "success" | "error"
-  >("idle");
-  const positionSaverRef = useRef<
-    KeyedDebouncer<string, PendingNodePosition> | null
-  >(null);
-  const positionAttemptRef = useRef(0);
 
   useEffect(() => {
     const rootChanged = previousRootIdRef.current !== mindMap.rootId;
@@ -312,7 +347,7 @@ export function MindMapView({
 
     return () => {
       isCurrent = false;
-      positionSaver.cancelAll();
+      positionSaver.flushAll();
       if (positionSaverRef.current === positionSaver) {
         positionSaverRef.current = null;
       }
@@ -374,24 +409,6 @@ export function MindMapView({
   }, [highlightedNodeIds, locale, mindMap.crossEdges, mindMap.treeEdges, selectedId]);
 
   const legendTones: GraphTone[] = ["source", "ai", "evidence", "context", "action"];
-
-  function persistNodePosition(nodeId: string, position: NodePosition) {
-    const attempt = positionAttemptRef.current + 1;
-    positionAttemptRef.current = attempt;
-    if (
-      !canPersistMindMapNodePosition({
-        hasPersistenceHandler: Boolean(onNodePositionChange),
-        isDemo,
-        nodeId,
-      }) ||
-      !positionSaverRef.current
-    ) {
-      setPositionStatus("idle");
-      return;
-    }
-    setPositionStatus("saving");
-    positionSaverRef.current.schedule(nodeId, { attempt, position });
-  }
 
   return (
     <section

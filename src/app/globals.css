@@ -2230,13 +2230,42 @@ textarea:focus-visible {
 }
 
 .knowledge-graph-count {
+  display: grid;
+  gap: 6px;
   border: 1px solid color-mix(in srgb, var(--source) 16%, transparent);
-  border-radius: 999px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--canvas) 48%, transparent);
   padding: 6px 10px;
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.knowledge-graph-origin-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+
+.knowledge-graph-origin-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-2);
+  font-size: 10px;
+}
+
+.knowledge-graph-origin-legend i {
+  width: 22px;
+  border-top: 1px solid currentColor;
+}
+
+.knowledge-graph-origin-legend i[data-origin="ai"] {
+  border-top-style: dashed;
+}
+
+.knowledge-graph-origin-legend i[data-origin="system"] {
+  border-top-style: dotted;
 }
 
 .knowledge-graph-stage .react-flow__node {
@@ -2246,7 +2275,10 @@ textarea:focus-visible {
 .knowledge-graph-filter {
   display: grid;
   gap: 7px;
-  min-width: 220px;
+  min-width: 250px;
+  max-width: min(320px, calc(100vw - 48px));
+  max-height: calc(100% - 42px);
+  overflow-y: auto;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
   background: color-mix(in srgb, var(--canvas) 80%, transparent);
@@ -2255,7 +2287,15 @@ textarea:focus-visible {
   backdrop-filter: blur(18px);
 }
 
-.knowledge-graph-filter > span {
+.knowledge-graph-filter section {
+  display: grid;
+  gap: 6px;
+}
+
+.knowledge-graph-filter section > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted-2);
   font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   font-size: 9px;
@@ -2263,7 +2303,7 @@ textarea:focus-visible {
   text-transform: uppercase;
 }
 
-.knowledge-graph-filter > div {
+.knowledge-graph-filter section > div {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -2289,6 +2329,17 @@ textarea:focus-visible {
   color: var(--foreground);
 }
 
+.knowledge-graph-filter button:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+}
+
+.knowledge-graph-filter button:disabled:hover {
+  border-color: var(--line-soft);
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
+  color: var(--muted);
+}
+
 .knowledge-graph-filter button:focus-visible,
 .knowledge-graph-node__target:focus-visible,
 .knowledge-graph-preview button:focus-visible {
@@ -2306,6 +2357,34 @@ textarea:focus-visible {
   justify-self: start;
   border-color: color-mix(in srgb, var(--signal) 20%, transparent);
   color: var(--signal);
+}
+
+.knowledge-graph-scope label {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.knowledge-graph-scope input,
+.knowledge-graph-scope select {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-ink-7) 94%, transparent);
+  padding: 0 8px;
+  color: var(--foreground);
+  color-scheme: dark;
+  font-size: 10px;
+}
+
+.knowledge-graph-scope input:focus-visible,
+.knowledge-graph-scope select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--signal) 82%, transparent);
+  outline-offset: 2px;
 }
 
 .knowledge-graph-node {
@@ -2373,6 +2452,19 @@ textarea:focus-visible {
   border-color: color-mix(in srgb, var(--foreground) 78%, transparent);
 }
 
+.knowledge-graph-node.is-orphan .knowledge-graph-node__dot {
+  border-style: dashed;
+  opacity: 0.78;
+}
+
+.knowledge-graph-node.is-search-match .knowledge-graph-node__dot {
+  transform: scale(1.45);
+  border-color: var(--signal);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--signal) 9%, transparent),
+    0 0 26px color-mix(in srgb, var(--signal) 38%, transparent);
+}
+
 .knowledge-graph-node__label {
   position: absolute;
   top: 50%;
@@ -2389,7 +2481,8 @@ textarea:focus-visible {
 }
 
 .knowledge-graph-node.is-selected .knowledge-graph-node__label,
-.knowledge-graph-node.is-related .knowledge-graph-node__label {
+.knowledge-graph-node.is-related .knowledge-graph-node__label,
+.knowledge-graph-node.is-search-match .knowledge-graph-node__label {
   color: var(--foreground);
 }
 

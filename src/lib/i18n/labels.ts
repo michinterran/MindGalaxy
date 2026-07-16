@@ -1,8 +1,17 @@
 import { t, type Locale, type MessageKey } from "@/lib/i18n";
-import type { CaptureSourceKind, NodeKind, ProcessingStatus } from "@/types/domain";
+import type {
+  CaptureSourceKind,
+  EdgeKind,
+  NodeKind,
+  ProcessingStatus,
+} from "@/types/domain";
 
 export function nodeKindLabel(locale: Locale, kind: NodeKind | null | undefined) {
   return kind ? t(locale, `graph.nodeKind.${kind}` as MessageKey) : "";
+}
+
+export function edgeKindLabel(locale: Locale, kind: EdgeKind) {
+  return t(locale, `graph.edgeKind.${kind}` as MessageKey);
 }
 
 export function captureSourceLabel(locale: Locale, kind: CaptureSourceKind | string | null | undefined) {

@@ -24,6 +24,7 @@ export type CreateGraphEdgeResponse = {
     targetNodeId: string;
     kind: EdgeKind;
     label: string | null;
+    origin: "user";
     createdAt: string;
   };
 };
