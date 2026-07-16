@@ -28,7 +28,7 @@ type CapturePanelProps = {
   variant?: "panel" | "hero";
   locale?: Locale;
   onCaptureCreated?: (result: CreateCaptureResponse, draft: CaptureDraft) => void;
-  onViewLibrary?: () => void;
+  onViewKnowledge?: () => void;
 };
 
 export type CaptureDraft = {
@@ -69,7 +69,7 @@ export function CapturePanel({
   autoFocus = false,
   locale = DEFAULT_LOCALE,
   onCaptureCreated,
-  onViewLibrary,
+  onViewKnowledge,
   workspaceId,
   variant = "panel",
 }: CapturePanelProps) {
@@ -89,6 +89,7 @@ export function CapturePanel({
   const textLength = rawText.trim().length;
   const hasRawText = textLength > 0;
   const isHero = variant === "hero";
+  const isSuccess = state.kind === "success";
 
   function focusForNextCapture() {
     setState({
@@ -166,7 +167,6 @@ export function CapturePanel({
           title: trimmedTitle || null,
         });
         router.refresh();
-        requestAnimationFrame(() => rawTextRef.current?.focus());
       } catch (error) {
         setState({
           kind: "error",
@@ -224,6 +224,7 @@ export function CapturePanel({
           <label className="field-label" htmlFor="capture-title">
             {t(locale, "capture.titleLabel")}
             <input
+              disabled={isSuccess}
               id="capture-title"
               onChange={(event) => setTitle(event.target.value)}
               placeholder={t(locale, "capture.titlePlaceholder")}
@@ -236,6 +237,7 @@ export function CapturePanel({
         <label className="field-label" htmlFor="capture-raw-text">
           {t(locale, "capture.rawTextLabel")}
           <textarea
+            disabled={isSuccess}
             id="capture-raw-text"
             onChange={(event) => setRawText(event.target.value)}
             placeholder={t(locale, "capture.rawTextPlaceholder")}
@@ -247,6 +249,7 @@ export function CapturePanel({
         <div className="capture-panel__meta">
           <button
             className="ghost-button"
+            disabled={isSuccess}
             onClick={() => setShowTitle((value) => !value)}
             type="button"
           >
@@ -271,30 +274,37 @@ export function CapturePanel({
           <span>{state.message}</span>
         </div>
 
-        {state.kind === "success" ? (
+        {isSuccess ? (
           <div className="capture-panel__success-actions">
             <button className="ghost-button" onClick={focusForNextCapture} type="button">
               {t(locale, "capture.success.next")}
             </button>
-            {onViewLibrary ? (
-              <button className="ghost-button" onClick={onViewLibrary} type="button">
-                {t(locale, "capture.success.library")}
+            {onViewKnowledge ? (
+              <button
+                className="ghost-button capture-panel__success-primary"
+                onClick={onViewKnowledge}
+                type="button"
+              >
+                {t(locale, "capture.success.knowledge")}
+                <ArrowRight className="size-4" />
               </button>
             ) : null}
           </div>
         ) : null}
 
-        <button
-          className={`primary-button ${hasRawText ? "primary-button--ready" : "primary-button--empty"}`}
-          disabled={isPending || !hasRawText}
-          onClick={submitCapture}
-          type="button"
-        >
-          {isPending
-            ? t(locale, "capture.cta.pending")
-            : t(locale, "capture.cta.idle")}
-          <ArrowRight className="size-4" />
-        </button>
+        {!isSuccess ? (
+          <button
+            className={`primary-button ${hasRawText ? "primary-button--ready" : "primary-button--empty"}`}
+            disabled={isPending || !hasRawText}
+            onClick={submitCapture}
+            type="button"
+          >
+            {isPending
+              ? t(locale, "capture.cta.pending")
+              : t(locale, "capture.cta.idle")}
+            <ArrowRight className="size-4" />
+          </button>
+        ) : null}
       </div>
     </section>
   );

@@ -1219,16 +1219,27 @@ textarea:focus-visible {
 }
 
 .capture-panel__success-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
 .capture-panel__success-actions .ghost-button {
+  display: inline-flex;
+  width: 100%;
   min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid var(--line-soft);
   background: color-mix(in srgb, var(--white) 2.5%, transparent);
   padding: 0 10px;
+}
+
+.capture-panel__success-actions .capture-panel__success-primary {
+  border-color: color-mix(in srgb, var(--signal) 30%, transparent);
+  background: color-mix(in srgb, var(--signal) 10%, transparent);
+  color: var(--signal);
 }
 
 .primary-button {
@@ -1495,7 +1506,7 @@ textarea:focus-visible {
 
 .map-readiness-pipeline ol {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   margin: 24px 0 0;
   padding: 0;
@@ -1747,6 +1758,14 @@ textarea:focus-visible {
   grid-column: 1 / -1;
   color: var(--muted-2);
   font-size: 10px;
+}
+
+:lang(ko) .map-readiness-header h2,
+:lang(ko) .map-readiness-header .canvas-stage__description,
+:lang(ko) .map-readiness-pipeline h3,
+:lang(ko) .map-activity-banner__copy,
+:lang(ko) .map-activity-banner__status {
+  word-break: keep-all;
 }
 
 .map-activity-banner__status {

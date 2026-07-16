@@ -9,18 +9,58 @@ import {
 } from "@/features/analysis/observability";
 import {
   captureAnalysisEventSchema,
+  type CaptureAnalysisEvent,
 } from "@/features/analysis/queue/contracts";
+import { recordAnalysisOperatorRecovery } from "@/features/analysis/queue/outbox";
 import {
   CaptureAnalysisRunError,
   runCaptureAnalysisJob,
 } from "@/features/analysis/worker/run-capture-analysis";
 
 type AnalysisRunner = typeof runCaptureAnalysisJob;
+type OperatorRecovery = (
+  event: CaptureAnalysisEvent,
+  deliveryCount: number,
+  errorCode: string,
+) => Promise<boolean>;
+
+async function recoverExhaustedDelivery(
+  event: CaptureAnalysisEvent,
+  metadata: MessageMetadata,
+  errorCode: string,
+  recovery: OperatorRecovery,
+) {
+  if (
+    metadata.deliveryCount <
+    ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold
+  ) {
+    return false;
+  }
+
+  const recorded = await recovery(event, metadata.deliveryCount, errorCode);
+
+  if (recorded) {
+    logAnalysisEvent("error", {
+      event: "queue.delivery_budget_exhausted_recorded",
+      stage: "consume",
+      jobId: event.processingJobId,
+      captureId: event.captureId,
+      workspaceId: event.workspaceId,
+      queueMessageId: metadata.messageId,
+      deliveryCount: metadata.deliveryCount,
+      errorCode,
+      outcome: "operator_recovery_recorded",
+    });
+  }
+
+  return recorded;
+}
 
 export async function consumeCaptureAnalysisEvent(
   message: unknown,
   metadata: MessageMetadata,
   runner: AnalysisRunner = runCaptureAnalysisJob,
+  recovery: OperatorRecovery = recordAnalysisOperatorRecovery,
 ) {
   const parsed = captureAnalysisEventSchema.safeParse(message);
 
@@ -40,14 +80,41 @@ export async function consumeCaptureAnalysisEvent(
     outcome: "started",
   });
 
-  const result = await runner(parsed.data.processingJobId, {
-    expectedCaptureId: parsed.data.captureId,
-    expectedWorkspaceId: parsed.data.workspaceId,
-    maxAttempts: JOB_REGISTRY.captureStructuring.maxManualAttempts,
-    rethrowFailures: true,
-  });
+  let result: Awaited<ReturnType<AnalysisRunner>>;
+  try {
+    result = await runner(parsed.data.processingJobId, {
+      expectedCaptureId: parsed.data.captureId,
+      expectedWorkspaceId: parsed.data.workspaceId,
+      maxAttempts: JOB_REGISTRY.captureStructuring.maxManualAttempts,
+      rethrowFailures: true,
+    });
+  } catch (error) {
+    const recorded = await recoverExhaustedDelivery(
+      parsed.data,
+      metadata,
+      analysisErrorCode(error),
+      recovery,
+    );
+
+    if (recorded) {
+      return;
+    }
+
+    throw error;
+  }
 
   if (result.disposition === "pending") {
+    const recorded = await recoverExhaustedDelivery(
+      parsed.data,
+      metadata,
+      "ANALYSIS_JOB_NOT_READY",
+      recovery,
+    );
+
+    if (recorded) {
+      return;
+    }
+
     throw new Error("ANALYSIS_JOB_NOT_READY");
   }
 

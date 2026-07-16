@@ -3,6 +3,7 @@ import {
   deriveKnowledgeMapReadiness,
   knowledgeMapReadinessStateKey,
   selectKnowledgeMapActivityCapture,
+  selectKnowledgeMapReadinessCapture,
   type RecentCapture,
 } from "@/features/knowledge-map/model/readiness";
 
@@ -72,7 +73,7 @@ describe("deriveKnowledgeMapReadiness", () => {
         nodeCount: 3,
         processingStatus: "running",
       }),
-    ).toMatchObject({ kind: "ready", completedSteps: 5 });
+    ).toMatchObject({ kind: "ready", completedSteps: 3 });
   });
 });
 
@@ -102,6 +103,26 @@ describe("selectKnowledgeMapActivityCapture", () => {
   });
 });
 
+describe("selectKnowledgeMapReadinessCapture", () => {
+  it("keeps an active capture in view even when a newer capture is completed", () => {
+    expect(
+      selectKnowledgeMapReadinessCapture([
+        recentCapture("completed-latest", "completed"),
+        recentCapture("queued-active", "queued"),
+      ])?.id,
+    ).toBe("queued-active");
+  });
+
+  it("falls back to the newest capture when there is no actionable job", () => {
+    expect(
+      selectKnowledgeMapReadinessCapture([
+        recentCapture("completed-latest", "completed"),
+      ])?.id,
+    ).toBe("completed-latest");
+    expect(selectKnowledgeMapReadinessCapture([])).toBeNull();
+  });
+});
+
 describe("knowledgeMapReadinessStateKey", () => {
   it("changes when the active processing job changes", () => {
     const capture = recentCapture("capture-1", "queued");
@@ -123,5 +144,14 @@ describe("knowledgeMapReadinessStateKey", () => {
     expect(
       knowledgeMapReadinessStateKey([recentCapture("capture-1", null)]),
     ).toBe("capture:capture-1");
+  });
+
+  it("tracks the actionable job rather than a newer completed capture", () => {
+    expect(
+      knowledgeMapReadinessStateKey([
+        { ...recentCapture("completed-latest", "completed"), processingJobId: "job-done" },
+        { ...recentCapture("running-active", "running"), processingJobId: "job-active" },
+      ]),
+    ).toBe("job:job-active");
   });
 });

@@ -16,6 +16,15 @@ export type PersistedCaptureAnalysis = Omit<CaptureAnalysisOutput, "nodes"> & {
   nodes: PersistedAnalysisNode[];
 };
 
+export type EmbeddedCaptureAnalysisResult = {
+  analysis: PersistedCaptureAnalysis;
+  usage: {
+    model: string;
+    embeddingTokens: number;
+    totalTokens: number;
+  };
+};
+
 function boundedEmbeddingInput(value: string) {
   return value.slice(0, SEARCH_REGISTRY.embeddingInputMaxChars);
 }
@@ -44,17 +53,23 @@ export async function embedCaptureAnalysis(
   openai: OpenAI,
   job: ClaimedAnalysisJob,
   analysis: CaptureAnalysisOutput,
-): Promise<PersistedCaptureAnalysis> {
+): Promise<EmbeddedCaptureAnalysisResult> {
   const inputs = [
     captureSearchText(job),
     ...analysis.nodes.map((node) => nodeSearchText(node)),
   ];
 
-  const response = await openai.embeddings.create({
-    model: SEARCH_REGISTRY.embedding.model,
-    dimensions: SEARCH_REGISTRY.embedding.dimensions,
-    input: inputs,
-  });
+  const response = await openai.embeddings.create(
+    {
+      model: SEARCH_REGISTRY.embedding.model,
+      dimensions: SEARCH_REGISTRY.embedding.dimensions,
+      input: inputs,
+    },
+    {
+      timeout: SEARCH_REGISTRY.embedding.timeoutMs,
+      maxRetries: SEARCH_REGISTRY.embedding.maxRetries,
+    },
+  );
 
   const embeddings = response.data
     .sort((left, right) => left.index - right.index)
@@ -67,11 +82,18 @@ export async function embedCaptureAnalysis(
   }
 
   return {
-    ...analysis,
-    captureEmbedding,
-    nodes: analysis.nodes.map((node, index) => ({
-      ...node,
-      embedding: nodeEmbeddings[index] ?? [],
-    })),
+    analysis: {
+      ...analysis,
+      captureEmbedding,
+      nodes: analysis.nodes.map((node, index) => ({
+        ...node,
+        embedding: nodeEmbeddings[index] ?? [],
+      })),
+    },
+    usage: {
+      model: response.model,
+      embeddingTokens: response.usage.prompt_tokens,
+      totalTokens: response.usage.total_tokens,
+    },
   };
 }

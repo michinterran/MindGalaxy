@@ -12,6 +12,15 @@ export type AnalysisLogEvent = {
   durationMs?: number;
   errorCode?: string;
   outcome?: string;
+  model?: string;
+  promptVersion?: string;
+  responseId?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  cachedTokens?: number;
+  reasoningTokens?: number;
+  embeddingTokens?: number;
 };
 
 export function analysisErrorCode(error: unknown) {

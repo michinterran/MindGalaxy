@@ -262,10 +262,20 @@ export async function runCaptureAnalysisBatch(
 
       const response = await openai.responses.parse({
         model: job.model,
+        reasoning: {
+          effort: JOB_REGISTRY.captureStructuring.model.reasoningEffort,
+        },
+        max_output_tokens:
+          JOB_REGISTRY.captureStructuring.model.maxOutputTokens,
+        prompt_cache_key: `${JOB_REGISTRY.captureStructuring.model.promptCacheKeyPrefix}:${job.promptVersion}`,
         input: [
           {
             role: "system",
-            content: CAPTURE_ANALYSIS_SYSTEM_PROMPT,
+            content: [
+              CAPTURE_ANALYSIS_SYSTEM_PROMPT,
+              JOB_REGISTRY.captureStructuring.prompt.purpose,
+              `Return at most ${JOB_REGISTRY.captureStructuring.limits.maxNodes} nodes, ${JOB_REGISTRY.captureStructuring.limits.maxEdges} edges, and ${JOB_REGISTRY.captureStructuring.limits.maxContexts} contexts. Prioritize the smallest useful graph over exhaustive coverage.`,
+            ].join("\n"),
           },
           {
             role: "user",
@@ -275,6 +285,26 @@ export async function runCaptureAnalysisBatch(
         text: {
           format: zodTextFormat(captureAnalysisSchema, "capture_analysis"),
         },
+      }, {
+        timeout: JOB_REGISTRY.captureStructuring.model.timeoutMs,
+        maxRetries: JOB_REGISTRY.captureStructuring.model.maxRetries,
+      });
+
+      logAnalysisEvent("info", {
+        event: "provider.usage",
+        stage: "extract",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+        model: response.model,
+        promptVersion: job.promptVersion,
+        responseId: response.id,
+        inputTokens: response.usage?.input_tokens,
+        outputTokens: response.usage?.output_tokens,
+        totalTokens: response.usage?.total_tokens,
+        cachedTokens: response.usage?.input_tokens_details.cached_tokens,
+        reasoningTokens:
+          response.usage?.output_tokens_details.reasoning_tokens,
       });
 
       if (!response.output_parsed) {
@@ -307,7 +337,19 @@ export async function runCaptureAnalysisBatch(
         captureId: job.captureId,
         attemptNumber: job.attemptNumber,
       });
-      const analysisWithEmbeddings = await embedCaptureAnalysis(openai, job, analysis);
+      const embeddingResult = await embedCaptureAnalysis(openai, job, analysis);
+
+      logAnalysisEvent("info", {
+        event: "provider.usage",
+        stage: "embed",
+        jobId: job.jobId,
+        captureId: job.captureId,
+        attemptNumber: job.attemptNumber,
+        model: embeddingResult.usage.model,
+        promptVersion: job.promptVersion,
+        embeddingTokens: embeddingResult.usage.embeddingTokens,
+        totalTokens: embeddingResult.usage.totalTokens,
+      });
 
       logAnalysisEvent("info", {
         event: "stage.completed",
@@ -330,7 +372,7 @@ export async function runCaptureAnalysisBatch(
         supabase,
         job,
         workerId,
-        analysisWithEmbeddings,
+        embeddingResult.analysis,
         score,
       );
 

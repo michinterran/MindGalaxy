@@ -1,9 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { ANALYSIS_QUEUE_REGISTRY } from "@/config/registry";
 import { logAnalysisEvent } from "@/features/analysis/observability";
-import { dispatchCaptureAnalysis } from "@/features/analysis/queue/dispatch";
-import { runCaptureAnalysisJob } from "@/features/analysis/worker/run-capture-analysis";
+import { drainAnalysisOutboxForJob } from "@/features/analysis/queue/outbox";
 import {
   InvalidJsonRequestError,
   invalidJsonResponse,
@@ -42,55 +40,26 @@ export async function POST(request: NextRequest) {
   try {
     const input = createCaptureInputSchema.parse(await parseJsonRequest(request));
     const result = await createCaptureWithProcessingJob(supabase, input);
-    const dispatch = await dispatchCaptureAnalysis({
-      schemaVersion: ANALYSIS_QUEUE_REGISTRY.schemaVersion,
-      eventType: ANALYSIS_QUEUE_REGISTRY.eventType,
-      processingJobId: result.processingJob.id,
-      captureId: result.capture.id,
-      workspaceId: result.capture.workspace_id,
-      createdAt: result.processingJob.created_at,
+    after(async () => {
+      try {
+        await drainAnalysisOutboxForJob(result.processingJob.id);
+      } catch {
+        logAnalysisEvent("warn", {
+          event: "outbox.drain_deferred",
+          stage: "after",
+          jobId: result.processingJob.id,
+          captureId: result.capture.id,
+          workspaceId: result.capture.workspace_id,
+          errorCode: "ANALYSIS_OUTBOX_DRAIN_FAILED",
+          outcome: "pending",
+        });
+      }
     });
-
-    if (dispatch.transport === "fallback") {
-      after(async () => {
-        const startedAt = performance.now();
-
-        try {
-          const batch = await runCaptureAnalysisJob(result.processingJob.id, {
-            expectedCaptureId: result.capture.id,
-            expectedWorkspaceId: result.capture.workspace_id,
-          });
-          logAnalysisEvent("info", {
-            event: "fallback.completed",
-            stage: "after",
-            jobId: result.processingJob.id,
-            captureId: result.capture.id,
-            workspaceId: result.capture.workspace_id,
-            durationMs: Math.round(performance.now() - startedAt),
-            outcome:
-              batch.disposition === "terminal"
-                ? "idempotent_terminal"
-                : batch.disposition,
-          });
-        } catch {
-          logAnalysisEvent("error", {
-            event: "fallback.failed",
-            stage: "after",
-            jobId: result.processingJob.id,
-            captureId: result.capture.id,
-            workspaceId: result.capture.workspace_id,
-            durationMs: Math.round(performance.now() - startedAt),
-            errorCode: "ANALYSIS_FALLBACK_FAILED",
-            outcome: "failed",
-          });
-        }
-      });
-    }
 
     return NextResponse.json(
       {
         ...result,
-        analysisDispatch: dispatch.transport,
+        analysisDispatch: "outbox",
       },
       { status: 201 },
     );

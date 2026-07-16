@@ -12,13 +12,13 @@ export function CaptureDrawer({
   locale,
   onClose,
   onCaptureCreated,
-  onViewLibrary,
+  onViewKnowledge,
   workspaceId,
 }: {
   locale: Locale;
   onClose: () => void;
   onCaptureCreated?: (result: CreateCaptureResponse, draft: CaptureDraft) => void;
-  onViewLibrary: () => void;
+  onViewKnowledge: () => void;
   workspaceId: string;
 }) {
   const titleId = useId();
@@ -62,7 +62,7 @@ export function CaptureDrawer({
           autoFocus
           locale={locale}
           onCaptureCreated={onCaptureCreated}
-          onViewLibrary={onViewLibrary}
+          onViewKnowledge={onViewKnowledge}
           workspaceId={workspaceId}
           variant="panel"
         />

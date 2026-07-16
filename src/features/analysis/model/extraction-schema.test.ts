@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { zodTextFormat } from "openai/helpers/zod";
+import { JOB_REGISTRY } from "@/config/registry";
 import { captureAnalysisSchema } from "@/features/analysis/model/extraction-schema";
 
 describe("captureAnalysisSchema", () => {
@@ -40,12 +41,15 @@ describe("captureAnalysisSchema", () => {
   });
 
   it("rejects too many nodes", () => {
-    const nodes = Array.from({ length: 25 }, (_, index) => ({
+    const nodes = Array.from(
+      { length: JOB_REGISTRY.captureStructuring.limits.maxNodes + 1 },
+      (_, index) => ({
       clientNodeId: `n${index}`,
       kind: "idea",
       title: `node ${index}`,
       confidence: 0.5,
-    }));
+      }),
+    );
 
     expect(() =>
       captureAnalysisSchema.parse({

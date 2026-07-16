@@ -13,6 +13,7 @@ import {
 import {
   deriveKnowledgeMapReadiness,
   knowledgeMapReadinessStateKey,
+  selectKnowledgeMapReadinessCapture,
   type KnowledgeMapReadinessKind,
   type RecentCapture,
 } from "@/features/knowledge-map/model/readiness";
@@ -32,10 +33,8 @@ import {
 
 const PIPELINE_STEP_KEYS = [
   "workspace.graph.readiness.step.source",
-  "workspace.graph.readiness.step.queued",
-  "workspace.graph.readiness.step.extract",
-  "workspace.graph.readiness.step.connect",
-  "workspace.graph.readiness.step.complete",
+  "workspace.graph.readiness.step.analysis",
+  "workspace.graph.readiness.step.map",
 ] as const satisfies readonly MessageKey[];
 
 const TITLE_KEYS = {
@@ -122,7 +121,7 @@ function KnowledgeMapReadinessContent({
   onRetry,
   recentCaptures,
 }: KnowledgeMapReadinessProps) {
-  const capture = recentCaptures[0] ?? null;
+  const capture = selectKnowledgeMapReadinessCapture(recentCaptures);
   const readiness = deriveKnowledgeMapReadiness({
     hasCapture: Boolean(capture),
     nodeCount: 0,
@@ -214,7 +213,11 @@ function KnowledgeMapReadinessContent({
             {t(locale, DESCRIPTION_KEYS[readiness.kind])}
           </span>
         </div>
-        <div className={`map-readiness-status map-readiness-status--${readiness.kind}`}>
+        <div
+          aria-live="polite"
+          className={`map-readiness-status map-readiness-status--${readiness.kind}`}
+          role="status"
+        >
           {isActive ? <LoaderCircle className="size-4" /> : readiness.kind === "failed" ? <AlertTriangle className="size-4" /> : <Sparkles className="size-4" />}
           <span>{processingStatusLabel(locale, capture.processingStatus)}</span>
           {isActive ? <small>{elapsedLabel(locale, elapsedSeconds)}</small> : null}

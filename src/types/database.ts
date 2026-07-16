@@ -176,6 +176,9 @@ export type OutboxEventRow = RowTimestamps & {
   attempts: number;
   available_at: string;
   published_at: string | null;
+  claimed_by: string | null;
+  lease_expires_at: string | null;
+  last_error_code: string | null;
   updated_at: string;
 };
 
@@ -312,6 +315,9 @@ export type Database = {
           attempts?: number;
           available_at?: string;
           published_at?: string | null;
+          claimed_by?: string | null;
+          lease_expires_at?: string | null;
+          last_error_code?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -388,6 +394,72 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_analysis_outbox_events: {
+        Args: {
+          p_worker_id: string;
+          p_limit?: number;
+          p_lease_seconds?: number;
+        };
+        Returns: {
+          event_id: string;
+          workspace_id: string;
+          aggregate_id: string;
+          event_type: string;
+          dedupe_key: string;
+          payload: Json;
+          attempts: number;
+          created_at: string;
+        }[];
+      };
+      claim_analysis_outbox_event_by_job_id: {
+        Args: {
+          p_processing_job_id: string;
+          p_worker_id: string;
+          p_lease_seconds?: number;
+        };
+        Returns: {
+          event_id: string;
+          workspace_id: string;
+          aggregate_id: string;
+          event_type: string;
+          dedupe_key: string;
+          payload: Json;
+          attempts: number;
+          created_at: string;
+        }[];
+      };
+      mark_analysis_outbox_published: {
+        Args: {
+          p_event_id: string;
+          p_worker_id: string;
+          p_message_id?: string | null;
+        };
+        Returns: boolean;
+      };
+      fail_analysis_outbox_event: {
+        Args: {
+          p_event_id: string;
+          p_worker_id: string;
+          p_error_code: string;
+          p_retry_delay_seconds?: number;
+          p_max_attempts?: number;
+        };
+        Returns: {
+          status: OutboxEventRow["status"];
+          attempts: number;
+          available_at: string;
+        }[];
+      };
+      record_analysis_operator_recovery: {
+        Args: {
+          p_job_id: string;
+          p_workspace_id: string;
+          p_capture_id: string;
+          p_error_code: string;
+          p_delivery_count: number;
+        };
+        Returns: boolean;
+      };
       create_capture_command: {
         Args: {
           p_workspace_id: string;
@@ -548,6 +620,80 @@ export type Database = {
       context_kind: ContextKind;
       export_kind: ExportKind;
     };
+    CompositeTypes: Record<string, never>;
+  };
+  private: {
+    Tables: Record<string, never>;
+    Views: Record<string, never>;
+    Functions: {
+      claim_analysis_outbox_events: {
+        Args: {
+          p_worker_id: string;
+          p_limit?: number;
+          p_lease_seconds?: number;
+        };
+        Returns: {
+          event_id: string;
+          workspace_id: string;
+          aggregate_id: string;
+          event_type: string;
+          dedupe_key: string;
+          payload: Json;
+          attempts: number;
+          created_at: string;
+        }[];
+      };
+      claim_analysis_outbox_event_by_job_id: {
+        Args: {
+          p_processing_job_id: string;
+          p_worker_id: string;
+          p_lease_seconds?: number;
+        };
+        Returns: {
+          event_id: string;
+          workspace_id: string;
+          aggregate_id: string;
+          event_type: string;
+          dedupe_key: string;
+          payload: Json;
+          attempts: number;
+          created_at: string;
+        }[];
+      };
+      mark_analysis_outbox_published: {
+        Args: {
+          p_event_id: string;
+          p_worker_id: string;
+          p_message_id?: string | null;
+        };
+        Returns: boolean;
+      };
+      fail_analysis_outbox_event: {
+        Args: {
+          p_event_id: string;
+          p_worker_id: string;
+          p_error_code: string;
+          p_retry_delay_seconds?: number;
+          p_max_attempts?: number;
+        };
+        Returns: {
+          status: OutboxEventRow["status"];
+          attempts: number;
+          available_at: string;
+        }[];
+      };
+      record_analysis_operator_recovery: {
+        Args: {
+          p_job_id: string;
+          p_workspace_id: string;
+          p_capture_id: string;
+          p_error_code: string;
+          p_delivery_count: number;
+        };
+        Returns: boolean;
+      };
+    };
+    Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
 };

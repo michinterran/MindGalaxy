@@ -52,10 +52,16 @@ export function selectKnowledgeMapActivityCapture(
   );
 }
 
+export function selectKnowledgeMapReadinessCapture(
+  recentCaptures: RecentCapture[],
+): RecentCapture | null {
+  return selectKnowledgeMapActivityCapture(recentCaptures) ?? recentCaptures[0] ?? null;
+}
+
 export function knowledgeMapReadinessStateKey(
   recentCaptures: RecentCapture[],
 ): string {
-  const capture = recentCaptures[0];
+  const capture = selectKnowledgeMapReadinessCapture(recentCaptures);
 
   if (!capture) return "no-capture";
 
@@ -74,7 +80,7 @@ export function deriveKnowledgeMapReadiness({
   processingStatus?: string | null;
 }): KnowledgeMapReadiness {
   if (nodeCount > 0) {
-    return { kind: "ready", activeStep: 4, completedSteps: 5 };
+    return { kind: "ready", activeStep: 2, completedSteps: 3 };
   }
 
   if (!hasCapture) {
@@ -86,15 +92,15 @@ export function deriveKnowledgeMapReadiness({
   }
 
   if (processingStatus === PROCESSING_STATUS.needsReview) {
-    return { kind: "needs_review", activeStep: 4, completedSteps: 4 };
+    return { kind: "needs_review", activeStep: 2, completedSteps: 2 };
   }
 
   if (processingStatus === PROCESSING_STATUS.completed) {
-    return { kind: "completed_empty", activeStep: 4, completedSteps: 5 };
+    return { kind: "completed_empty", activeStep: 2, completedSteps: 2 };
   }
 
   if (processingStatus === PROCESSING_STATUS.running) {
-    return { kind: "running", activeStep: 2, completedSteps: 2 };
+    return { kind: "running", activeStep: 1, completedSteps: 1 };
   }
 
   return { kind: "queued", activeStep: 1, completedSteps: 1 };

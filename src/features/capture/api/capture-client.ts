@@ -16,7 +16,7 @@ export type CreateCaptureResponse = {
     job_type: string;
     created_at: string;
   };
-  analysisDispatch: "queue" | "fallback";
+  analysisDispatch: "outbox";
 };
 
 export class CaptureClientError extends Error {

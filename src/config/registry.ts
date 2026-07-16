@@ -1,22 +1,33 @@
 import { PROCESSING_STATUS } from "@/config/domain";
 import type { EdgeKind } from "@/types/domain";
+import type OpenAI from "openai";
 
 export const MODEL_REGISTRY = {
   captureStructuring: {
     provider: "openai",
     model: "gpt-5-mini",
+    reasoningEffort: "minimal" satisfies OpenAI.ReasoningEffort,
+    maxOutputTokens: 5_000,
+    promptCacheKeyPrefix: "mindgalaxy:capture:first-pass",
+    timeoutMs: 240_000,
+    // Database attempts and queue redelivery own retries. Avoid a hidden second
+    // 240-second provider attempt that could exceed the function budget.
+    maxRetries: 0,
   },
   embedding: {
     provider: "openai",
     model: "text-embedding-3-small",
     dimensions: 1536,
+    timeoutMs: 20_000,
+    maxRetries: 0,
   },
 } as const;
 
 export const PROMPT_REGISTRY = {
   captureStructuring: {
-    version: "mindgalaxy-capture-v1",
-    purpose: "Extract nodes, edges, contexts, and evidence snippets from a raw capture.",
+    version: "mindgalaxy-capture-first-pass-v2",
+    purpose:
+      "Extract a concise, evidence-grounded first-pass graph that becomes usable quickly and can be enriched later.",
   },
 } as const;
 
@@ -34,9 +45,9 @@ export const JOB_REGISTRY = {
     maxBatchSize: 5,
     retryBaseDelaySeconds: 60,
     limits: {
-      maxNodes: 24,
-      maxEdges: 48,
-      maxContexts: 32,
+      maxNodes: 12,
+      maxEdges: 20,
+      maxContexts: 12,
     },
     confidence: {
       autoCompleteThreshold: 0.72,

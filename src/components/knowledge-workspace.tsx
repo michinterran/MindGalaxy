@@ -269,9 +269,9 @@ export function KnowledgeWorkspace({
             locale={locale}
             onClose={controller.closeCapturePanel}
             onCaptureCreated={rememberCapture}
-            onViewLibrary={() => {
+            onViewKnowledge={() => {
               controller.closeCapturePanel();
-              controller.changeArea("library");
+              controller.changeArea("knowledge");
             }}
             workspaceId={workspace.id}
           />
@@ -302,7 +302,6 @@ export function KnowledgeWorkspace({
                   rememberCapture(result, draft);
                   controller.changeArea("knowledge");
                 }}
-                onViewLibrary={() => controller.changeArea("library")}
                 variant="hero"
                 workspaceId={workspace.id}
               />

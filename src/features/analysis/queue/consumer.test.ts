@@ -107,6 +107,49 @@ describe("consumeCaptureAnalysisEvent", () => {
     ).rejects.toThrow("ANALYSIS_JOB_NOT_READY");
   });
 
+  it("stops retrying only after exhausted delivery recovery is recorded", async () => {
+    const runner = vi.fn().mockResolvedValue({
+      claimed: 0,
+      completed: 0,
+      needsReview: 0,
+      failed: 0,
+      jobIds: [],
+      errorCodes: [],
+      disposition: "pending",
+      status: "queued",
+    });
+    const recovery = vi.fn().mockResolvedValue(true);
+
+    await expect(
+      consumeCaptureAnalysisEvent(
+        event,
+        metadata(ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold),
+        runner,
+        recovery,
+      ),
+    ).resolves.toBeUndefined();
+    expect(recovery).toHaveBeenCalledWith(
+      event,
+      ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold,
+      "ANALYSIS_JOB_NOT_READY",
+    );
+  });
+
+  it("keeps the message retryable when exhausted delivery recovery cannot be recorded", async () => {
+    const runner = vi.fn().mockRejectedValue(new Error("TRANSIENT_FAILURE"));
+    const recovery = vi.fn().mockResolvedValue(false);
+
+    await expect(
+      consumeCaptureAnalysisEvent(
+        event,
+        metadata(ANALYSIS_QUEUE_REGISTRY.poisonDeliveryThreshold),
+        runner,
+        recovery,
+      ),
+    ).rejects.toThrow("TRANSIENT_FAILURE");
+    expect(recovery).toHaveBeenCalledOnce();
+  });
+
   it("acknowledges an idempotent redelivery only after the exact job is terminal", async () => {
     const runner = vi.fn().mockResolvedValue({
       claimed: 0,
