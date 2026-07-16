@@ -2,8 +2,12 @@ import type {
   GraphEdge,
   GraphProjection,
   GraphSnapshot,
+  MindMapProjectedNode,
+  MindMapProjection,
+  MindMapProjectionOptions,
   PositionedGraphNode,
 } from "@/features/knowledge-map/model/graph";
+import { MIND_MAP_UNORGANIZED_GROUP_ID } from "@/features/knowledge-map/model/graph";
 
 type LayoutOverride = Partial<
   Record<
@@ -27,6 +31,10 @@ const MAX_GALAXY_NODES = 80;
 const LEVEL_X_SPACING = 360;
 const NODE_Y_SPACING = 150;
 const COMPONENT_Y_SPACING = 220;
+const DEFAULT_MIND_MAP_DEPTH = 2;
+const DEFAULT_MIND_MAP_INITIAL_CAP = 15;
+const DEFAULT_MIND_MAP_MAX_CAP = 30;
+const DEFAULT_MIND_MAP_BRANCH_LIMIT = 7;
 
 function byStableNodeOrder(a: { id: string; title: string }, b: { id: string; title: string }) {
   return a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
@@ -71,6 +79,192 @@ function buildMetrics(nodes: GraphSnapshot["nodes"], edges: GraphEdge[]): GraphM
   }
 
   return { indegree, outdegree, degree, adjacency, outgoing };
+}
+
+type RootedMindMapTree = {
+  childrenById: Map<string, string[]>;
+  componentNodeIds: Set<string>;
+  levelById: Map<string, number>;
+  parentEdgeById: Map<string, GraphEdge>;
+};
+
+function normalizedInteger(value: number | undefined, fallback: number, min: number, max: number) {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  return clamp(Math.floor(value), min, max);
+}
+
+function buildRootedMindMapTree(
+  nodes: PositionedGraphNode[],
+  edges: GraphEdge[],
+  rootId: string,
+): RootedMindMapTree {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const adjacency = new Map(
+    nodes.map((node) => [
+      node.id,
+      [] as Array<{ edge: GraphEdge; neighborId: string; followsDirection: boolean }>,
+    ]),
+  );
+
+  for (const edge of edges) {
+    if (!nodeById.has(edge.sourceNodeId) || !nodeById.has(edge.targetNodeId)) continue;
+    adjacency.get(edge.sourceNodeId)?.push({
+      edge,
+      neighborId: edge.targetNodeId,
+      followsDirection: true,
+    });
+    adjacency.get(edge.targetNodeId)?.push({
+      edge,
+      neighborId: edge.sourceNodeId,
+      followsDirection: false,
+    });
+  }
+
+  for (const neighbors of adjacency.values()) {
+    neighbors.sort((left, right) => {
+      const leftNode = nodeById.get(left.neighborId);
+      const rightNode = nodeById.get(right.neighborId);
+      if (!leftNode || !rightNode) return left.neighborId.localeCompare(right.neighborId);
+
+      return (
+        Number(right.followsDirection) - Number(left.followsDirection) ||
+        rightNode.degree - leftNode.degree ||
+        byStableNodeOrder(leftNode, rightNode) ||
+        left.edge.id.localeCompare(right.edge.id)
+      );
+    });
+  }
+
+  const childrenById = new Map(nodes.map((node) => [node.id, [] as string[]]));
+  const componentNodeIds = new Set<string>([rootId]);
+  const levelById = new Map<string, number>([[rootId, 0]]);
+  const parentEdgeById = new Map<string, GraphEdge>();
+  const queue = [rootId];
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const parentId = queue[index];
+    const parentLevel = levelById.get(parentId) ?? 0;
+
+    for (const neighbor of adjacency.get(parentId) ?? []) {
+      if (componentNodeIds.has(neighbor.neighborId)) continue;
+      componentNodeIds.add(neighbor.neighborId);
+      levelById.set(neighbor.neighborId, parentLevel + 1);
+      parentEdgeById.set(neighbor.neighborId, neighbor.edge);
+      childrenById.get(parentId)?.push(neighbor.neighborId);
+      queue.push(neighbor.neighborId);
+    }
+  }
+
+  return { childrenById, componentNodeIds, levelById, parentEdgeById };
+}
+
+function visibleMindMapNodeIds({
+  branchLimit,
+  collapsedNodeIds,
+  expandedNodeIds,
+  initialVisibleCap,
+  maxDepth,
+  maxVisibleCap,
+  rootId,
+  tree,
+}: {
+  branchLimit: number;
+  collapsedNodeIds: Set<string>;
+  expandedNodeIds: Set<string>;
+  initialVisibleCap: number;
+  maxDepth: number;
+  maxVisibleCap: number;
+  rootId: string;
+  tree: RootedMindMapTree;
+}) {
+  const hasExplicitExpansion = [...expandedNodeIds].some(
+    (id) => (tree.childrenById.get(id)?.length ?? 0) > 0,
+  );
+  const visibleCap = hasExplicitExpansion ? maxVisibleCap : initialVisibleCap;
+  const visible = new Set<string>([rootId]);
+  const ordered = [rootId];
+  let parents = [rootId];
+
+  while (parents.length && visible.size < visibleCap) {
+    const eligibleParents = parents.filter((parentId) => {
+      if (collapsedNodeIds.has(parentId)) return false;
+      const level = tree.levelById.get(parentId) ?? 0;
+      return level < maxDepth || expandedNodeIds.has(parentId);
+    });
+    const nextParents: string[] = [];
+    const childSlots = Math.max(
+      0,
+      ...eligibleParents.map((parentId) =>
+        expandedNodeIds.has(parentId)
+          ? (tree.childrenById.get(parentId)?.length ?? 0)
+          : Math.min(branchLimit, tree.childrenById.get(parentId)?.length ?? 0),
+      ),
+    );
+
+    // Round-robin across branches prevents one dense branch from consuming the
+    // complete readable-node budget before its siblings receive a child.
+    for (let childIndex = 0; childIndex < childSlots; childIndex += 1) {
+      for (const parentId of eligibleParents) {
+        if (visible.size >= visibleCap) break;
+        const parentChildLimit = expandedNodeIds.has(parentId)
+          ? (tree.childrenById.get(parentId)?.length ?? 0)
+          : branchLimit;
+        if (childIndex >= parentChildLimit) continue;
+        const childId = tree.childrenById.get(parentId)?.[childIndex];
+        if (!childId || visible.has(childId)) continue;
+        visible.add(childId);
+        ordered.push(childId);
+        nextParents.push(childId);
+      }
+    }
+
+    parents = nextParents;
+  }
+
+  return { ordered, visible };
+}
+
+function countMindMapSubtree(
+  nodeId: string,
+  childrenById: Map<string, string[]>,
+  memo: Map<string, number>,
+): number {
+  const cached = memo.get(nodeId);
+  if (cached !== undefined) return cached;
+  const count = 1 + (childrenById.get(nodeId) ?? []).reduce(
+    (total, childId) => total + countMindMapSubtree(childId, childrenById, memo),
+    0,
+  );
+  memo.set(nodeId, count);
+  return count;
+}
+
+function focusedMindMapPositions(
+  orderedIds: string[],
+  levelById: Map<string, number>,
+) {
+  const byLevel = new Map<number, string[]>();
+
+  for (const id of orderedIds) {
+    const level = levelById.get(id) ?? 0;
+    const ids = byLevel.get(level) ?? [];
+    ids.push(id);
+    byLevel.set(level, ids);
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+
+  for (const [level, ids] of [...byLevel].sort(([left], [right]) => left - right)) {
+    const totalHeight = Math.max(0, ids.length - 1) * NODE_Y_SPACING;
+    ids.forEach((id, index) => {
+      positions.set(id, {
+        x: 80 + level * LEVEL_X_SPACING,
+        y: 120 - totalHeight / 2 + index * NODE_Y_SPACING,
+      });
+    });
+  }
+
+  return positions;
 }
 
 function rootScore(
@@ -443,5 +637,144 @@ export function projectGraphSnapshot(
     edges: edges.filter(
       (edge) => visibleNodeIds.has(edge.sourceNodeId) && visibleNodeIds.has(edge.targetNodeId),
     ),
+  };
+}
+
+/**
+ * Builds a readable, focus-based working view without truncating the shared
+ * GraphProjection used by Galaxy, search, inspector, and export flows.
+ */
+export function projectMindMapProjection(
+  graph: GraphProjection,
+  options: MindMapProjectionOptions = {},
+): MindMapProjection {
+  const totalNodeCount = graph.nodes.length;
+
+  if (!totalNodeCount) {
+    return {
+      rootId: null,
+      nodes: [],
+      treeEdges: [],
+      crossEdges: [],
+      visibleNodeCount: 0,
+      totalNodeCount: 0,
+      hiddenNodeCount: 0,
+      unorganizedGroup: null,
+    };
+  }
+
+  const graphNodeIds = new Set(graph.nodes.map((node) => node.id));
+  const requestedFocusId = options.focusNodeId;
+  const scoredRoot = chooseGraphRoot(graph.snapshot);
+  const fallbackRoot =
+    scoredRoot && graphNodeIds.has(scoredRoot.id) ? scoredRoot : graph.nodes[0];
+  const rootId =
+    requestedFocusId && graphNodeIds.has(requestedFocusId)
+      ? requestedFocusId
+      : fallbackRoot.id;
+  const maxDepth = normalizedInteger(options.maxDepth, DEFAULT_MIND_MAP_DEPTH, 0, 12);
+  const initialVisibleCap = normalizedInteger(
+    options.initialVisibleCap,
+    DEFAULT_MIND_MAP_INITIAL_CAP,
+    1,
+    200,
+  );
+  const maxVisibleCap = normalizedInteger(
+    options.maxVisibleCap,
+    DEFAULT_MIND_MAP_MAX_CAP,
+    initialVisibleCap,
+    300,
+  );
+  const branchLimit = normalizedInteger(
+    options.branchLimit,
+    DEFAULT_MIND_MAP_BRANCH_LIMIT,
+    1,
+    50,
+  );
+  const expandedNodeIds = new Set(
+    (options.expandedNodeIds ?? []).filter((id) => graphNodeIds.has(id)),
+  );
+  const collapsedNodeIds = new Set(
+    (options.collapsedNodeIds ?? []).filter((id) => graphNodeIds.has(id)),
+  );
+  const tree = buildRootedMindMapTree(graph.nodes, graph.edges, rootId);
+  const { ordered, visible } = visibleMindMapNodeIds({
+    branchLimit,
+    collapsedNodeIds,
+    expandedNodeIds,
+    initialVisibleCap,
+    maxDepth,
+    maxVisibleCap,
+    rootId,
+    tree,
+  });
+  const positions = focusedMindMapPositions(ordered, tree.levelById);
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const subtreeSizeMemo = new Map<string, number>();
+  const nodes = ordered
+    .map((id): MindMapProjectedNode | null => {
+      const node = nodeById.get(id);
+      if (!node) return null;
+      const children = tree.childrenById.get(id) ?? [];
+      const visibleChildren = children.filter((childId) => visible.has(childId));
+      const hiddenChildCount = children
+        .filter((childId) => !visible.has(childId))
+        .reduce(
+          (total, childId) =>
+            total + countMindMapSubtree(childId, tree.childrenById, subtreeSizeMemo),
+          0,
+        );
+
+      return {
+        ...node,
+        level: tree.levelById.get(id) ?? 0,
+        // A persisted workspace position is an explicit user decision. The
+        // focused projection may generate positions for every other node, but
+        // must not overwrite that durable layout on refresh.
+        position: node.savedPosition ?? positions.get(id) ?? { x: 80, y: 120 },
+        hasChildren: children.length > 0,
+        expanded: visibleChildren.length > 0,
+        explicitlyExpanded: expandedNodeIds.has(id) && !collapsedNodeIds.has(id),
+        collapsed: collapsedNodeIds.has(id),
+        canExpand: hiddenChildCount > 0,
+        hiddenChildCount,
+      };
+    })
+    .filter((node): node is MindMapProjectedNode => node !== null);
+  const treeEdgeIds = new Set<string>();
+  const treeEdges = ordered.flatMap((id) => {
+    if (id === rootId) return [];
+    const edge = tree.parentEdgeById.get(id);
+    if (!edge || !visible.has(id)) return [];
+    treeEdgeIds.add(edge.id);
+    return [edge];
+  });
+  const crossEdges = graph.edges.filter(
+    (edge) =>
+      visible.has(edge.sourceNodeId) &&
+      visible.has(edge.targetNodeId) &&
+      !treeEdgeIds.has(edge.id),
+  );
+  const disconnectedNodeIds = graph.nodes
+    .filter((node) => !tree.componentNodeIds.has(node.id))
+    .sort(byStableNodeOrder)
+    .map((node) => node.id);
+
+  return {
+    rootId,
+    nodes,
+    treeEdges,
+    crossEdges,
+    visibleNodeCount: nodes.length,
+    totalNodeCount,
+    hiddenNodeCount: tree.componentNodeIds.size - visible.size,
+    unorganizedGroup: disconnectedNodeIds.length
+      ? {
+          id: MIND_MAP_UNORGANIZED_GROUP_ID,
+          count: disconnectedNodeIds.length,
+          nodeIds: disconnectedNodeIds,
+          expanded: false,
+        }
+      : null,
   };
 }

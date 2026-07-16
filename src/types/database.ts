@@ -46,6 +46,7 @@ export type CaptureRow = RowTimestamps & {
   id: string;
   workspace_id: string;
   project_id: string | null;
+  folder_id: string | null;
   idempotency_key: string | null;
   title: string | null;
   raw_text: string;
@@ -55,6 +56,24 @@ export type CaptureRow = RowTimestamps & {
   search_document: string;
   metadata: Json;
   updated_at: string;
+};
+
+export type FolderRow = RowTimestamps & {
+  id: string;
+  workspace_id: string;
+  parent_id: string | null;
+  name: string;
+  sort_order: number;
+  updated_at: string;
+};
+
+export type CaptureTopicRow = {
+  capture_id: string;
+  topic_context_id: string;
+  workspace_id: string;
+  topic_kind: "topic";
+  assigned_by: string | null;
+  created_at: string;
 };
 
 export type CaptureSourceRow = {
@@ -240,6 +259,7 @@ export type Database = {
           id?: string;
           workspace_id: string;
           project_id?: string | null;
+          folder_id?: string | null;
           idempotency_key?: string | null;
           title?: string | null;
           raw_text: string;
@@ -251,8 +271,37 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<
-          Pick<CaptureRow, "project_id" | "title" | "metadata" | "updated_at">
+          Pick<CaptureRow, "project_id" | "folder_id" | "title" | "metadata" | "updated_at">
         >;
+        Relationships: [];
+      };
+      folders: {
+        Row: FolderRow;
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          parent_id?: string | null;
+          name: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Pick<FolderRow, "parent_id" | "name" | "sort_order" | "updated_at">
+        >;
+        Relationships: [];
+      };
+      capture_topics: {
+        Row: CaptureTopicRow;
+        Insert: {
+          capture_id: string;
+          topic_context_id: string;
+          workspace_id: string;
+          topic_kind?: "topic";
+          assigned_by?: string | null;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       capture_sources: {
@@ -483,6 +532,16 @@ export type Database = {
           processing_job_type: string;
           processing_job_created_at: string;
         }[];
+      };
+      update_capture_organization: {
+        Args: {
+          p_capture_id: string;
+          p_actor_user_id: string;
+          p_folder_id_provided?: boolean;
+          p_folder_id?: string | null;
+          p_topic_ids?: string[] | null;
+        };
+        Returns: boolean;
       };
       claim_capture_analysis_job: {
         Args: {

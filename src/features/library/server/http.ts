@@ -31,19 +31,28 @@ export async function requireLibraryClients(): Promise<LibraryClients> {
   return { actor, service, userId: user.id };
 }
 
-export function libraryErrorResponse(error: unknown) {
+export function sharedLibraryErrorResponse(
+  error: unknown,
+  headers: HeadersInit = libraryResponseHeaders,
+) {
   if (error instanceof InvalidJsonRequestError) {
-    return invalidJsonResponse(libraryResponseHeaders);
+    return invalidJsonResponse(headers);
   }
   if (error instanceof ZodError) {
-    return validationErrorResponse(error, libraryResponseHeaders);
+    return validationErrorResponse(error, headers);
   }
   if (error instanceof LibraryError) {
     return NextResponse.json(
       { error: error.code },
-      { status: error.status, headers: libraryResponseHeaders },
+      { status: error.status, headers },
     );
   }
+  return null;
+}
+
+export function libraryErrorResponse(error: unknown) {
+  const sharedResponse = sharedLibraryErrorResponse(error);
+  if (sharedResponse) return sharedResponse;
   console.error("[library] unexpected failure", error);
   return NextResponse.json(
     { error: "CAPTURE_READ_FAILED" },

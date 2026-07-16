@@ -38,6 +38,19 @@ const DynamicMindMapView = dynamic(
   },
 );
 
+const DynamicKnowledgeGraphView = dynamic(
+  () =>
+    import("@/features/knowledge-map/components/knowledge-graph-view").then(
+      (mod) => mod.KnowledgeGraphView,
+    ),
+  {
+    loading: () => (
+      <section className="canvas-stage renderer-loading" aria-hidden="true" />
+    ),
+    ssr: false,
+  },
+);
+
 const DynamicGalaxyView = dynamic(
   () =>
     import("@/features/knowledge-map/components/galaxy-view").then(
@@ -51,7 +64,7 @@ const DynamicGalaxyView = dynamic(
   },
 );
 
-export type ViewMode = "mindmap" | "galaxy" | "list";
+export type ViewMode = "mindmap" | "graph" | "galaxy" | "list";
 
 function getToneClass(tone: GraphTone) {
   return `mind-node--${tone}`;
@@ -134,6 +147,13 @@ export function KnowledgeMapClient({
   const activityCapture = selectKnowledgeMapActivityCapture(recentCaptures);
   const mapView = viewMode === "galaxy" ? (
       <DynamicGalaxyView
+        graph={graph}
+        locale={locale}
+        onSelect={onSelect}
+        selectedId={selectedId}
+      />
+    ) : viewMode === "graph" ? (
+      <DynamicKnowledgeGraphView
         graph={graph}
         locale={locale}
         onSelect={onSelect}

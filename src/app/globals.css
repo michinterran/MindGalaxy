@@ -1893,6 +1893,23 @@ textarea:focus-visible {
   line-height: 1.55;
 }
 
+.mind-map-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.mind-map-scope span {
+  border: 1px solid color-mix(in srgb, var(--source) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--canvas) 54%, transparent);
+  padding: 4px 8px;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
 .canvas-stage .react-flow {
   flex: 1;
   min-height: 0;
@@ -1978,6 +1995,12 @@ textarea:focus-visible {
 .mind-node:hover {
   border-color: color-mix(in srgb, var(--signal) 34%, transparent);
   transform: translateY(-1px);
+}
+
+.mind-node:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--signal) 78%, transparent);
+  outline-offset: 4px;
+  border-color: color-mix(in srgb, var(--signal) 58%, transparent);
 }
 
 .mind-node--selected {
@@ -2099,6 +2122,74 @@ textarea:focus-visible {
   background: var(--canvas);
 }
 
+.mind-node__branch-controls {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  right: -18px;
+  display: flex;
+  gap: 4px;
+  transform: translateY(-50%);
+}
+
+.mind-node__branch-controls button,
+.mind-node__hidden-count,
+.mind-node__focus-control {
+  display: grid;
+  min-width: 30px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--signal) 30%, transparent);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--white) 6%, transparent), transparent),
+    color-mix(in srgb, var(--surface-ink-7) 96%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--black) 42%, transparent),
+    0 0 18px color-mix(in srgb, var(--signal) 5%, transparent);
+  color: color-mix(in srgb, var(--signal) 88%, var(--foreground));
+  cursor: pointer;
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 1;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.mind-node__hidden-count {
+  cursor: default;
+  opacity: 0.66;
+}
+
+.mind-node__branch-controls button:hover,
+.mind-node__focus-control:hover {
+  transform: scale(1.05);
+  border-color: color-mix(in srgb, var(--signal) 58%, transparent);
+  background-color: color-mix(in srgb, var(--signal) 9%, var(--surface-ink-7));
+}
+
+.mind-node__branch-controls button:focus-visible,
+.mind-node__focus-control:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--signal) 82%, transparent);
+  outline-offset: 3px;
+}
+
+.mind-node__branch-controls button[aria-expanded="true"] {
+  color: var(--foreground);
+}
+
+.mind-node__focus-control {
+  position: absolute;
+  z-index: 4;
+  top: -13px;
+  right: 15px;
+  min-width: 28px;
+  color: color-mix(in srgb, var(--source) 78%, var(--foreground));
+}
+
 .react-flow__node {
   border: 0 !important;
   background: transparent !important;
@@ -2136,6 +2227,270 @@ textarea:focus-visible {
 
 .react-flow__attribution {
   display: none;
+}
+
+.knowledge-graph-count {
+  border: 1px solid color-mix(in srgb, var(--source) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--canvas) 48%, transparent);
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.knowledge-graph-stage .react-flow__node {
+  cursor: default;
+}
+
+.knowledge-graph-filter {
+  display: grid;
+  gap: 7px;
+  min-width: 220px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--canvas) 80%, transparent);
+  padding: 9px;
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--black) 34%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.knowledge-graph-filter > span {
+  color: var(--muted-2);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.knowledge-graph-filter > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.knowledge-graph-filter button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--white) 2.5%, transparent);
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.knowledge-graph-filter button.is-active,
+.knowledge-graph-filter button:hover {
+  border-color: color-mix(in srgb, var(--source) 24%, transparent);
+  background: color-mix(in srgb, var(--source) 7%, transparent);
+  color: var(--foreground);
+}
+
+.knowledge-graph-filter button:focus-visible,
+.knowledge-graph-node__target:focus-visible,
+.knowledge-graph-preview button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--signal) 82%, transparent);
+  outline-offset: 3px;
+}
+
+.knowledge-graph-filter button small {
+  color: var(--muted-2);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 9px;
+}
+
+.knowledge-graph-filter .knowledge-graph-reset {
+  justify-self: start;
+  border-color: color-mix(in srgb, var(--signal) 20%, transparent);
+  color: var(--signal);
+}
+
+.knowledge-graph-node {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  transition: opacity 150ms ease;
+}
+
+.knowledge-graph-node.is-dimmed {
+  opacity: 0.18;
+}
+
+.knowledge-graph-node__target {
+  position: relative;
+  display: flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.knowledge-graph-node__dot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--white) 48%, transparent);
+  border-radius: 999px;
+  background: var(--ai);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ai) 24%, transparent);
+  transition:
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.knowledge-graph-node--folder .knowledge-graph-node__dot {
+  width: 12px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--signal);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--signal) 22%, transparent);
+}
+
+.knowledge-graph-node--material .knowledge-graph-node__dot {
+  border-radius: 2px 7px 2px 7px;
+  background: var(--source);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--source) 25%, transparent);
+}
+
+.knowledge-graph-node.is-selected .knowledge-graph-node__dot {
+  transform: scale(1.5);
+  border-color: var(--signal);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--signal) 10%, transparent),
+    0 0 24px color-mix(in srgb, var(--signal) 40%, transparent);
+}
+
+.knowledge-graph-node.is-related .knowledge-graph-node__dot {
+  transform: scale(1.2);
+  border-color: color-mix(in srgb, var(--foreground) 78%, transparent);
+}
+
+.knowledge-graph-node__label {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  max-width: 150px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  color: color-mix(in srgb, var(--foreground) 76%, transparent);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-graph-node.is-selected .knowledge-graph-node__label,
+.knowledge-graph-node.is-related .knowledge-graph-node__label {
+  color: var(--foreground);
+}
+
+.knowledge-graph-node__tooltip {
+  position: absolute;
+  z-index: 30;
+  bottom: 26px;
+  left: 9px;
+  display: grid;
+  gap: 5px;
+  width: 230px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-ink-7) 97%, transparent);
+  padding: 10px;
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--black) 48%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.knowledge-graph-node:hover .knowledge-graph-node__tooltip,
+.knowledge-graph-node:focus-within .knowledge-graph-node__tooltip {
+  opacity: 1;
+}
+
+.knowledge-graph-node__tooltip strong {
+  color: var(--foreground);
+  font-size: 11px;
+}
+
+.knowledge-graph-node__tooltip span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.knowledge-graph-preview {
+  position: absolute;
+  z-index: 32;
+  top: 26px;
+  left: 9px;
+  display: grid;
+  width: 286px;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--signal) 20%, var(--line-soft));
+  border-radius: 11px;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--signal) 7%, transparent), transparent 38%),
+    color-mix(in srgb, var(--surface-ink-7) 97%, transparent);
+  padding: 12px;
+  box-shadow: 0 22px 54px color-mix(in srgb, var(--black) 54%, transparent);
+}
+
+.knowledge-graph-preview > span {
+  color: var(--source);
+  font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.knowledge-graph-preview strong {
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.knowledge-graph-preview p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.knowledge-graph-preview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.knowledge-graph-preview small {
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.knowledge-graph-preview button {
+  min-height: 28px;
+  border: 1px solid color-mix(in srgb, var(--signal) 24%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--signal) 8%, transparent);
+  padding: 0 8px;
+  color: var(--signal);
+  font-size: 9px;
 }
 
 .galaxy-stage {

@@ -8,7 +8,10 @@ import type {
   ViewMode,
 } from "@/features/knowledge-map/components/knowledge-map-client";
 import type { RecentCapture } from "@/features/knowledge-map/model/readiness";
-import type { GraphProjection } from "@/features/knowledge-map/model/graph";
+import {
+  canMutateGraphNode,
+  type GraphProjection,
+} from "@/features/knowledge-map/model/graph";
 import type { SearchPanelState } from "@/features/search/components/search-command-panel";
 import {
   isAbortError,
@@ -145,7 +148,7 @@ export function useWorkspaceController({
     closePanels();
   }
 
-  function changeMapView(mode: Extract<ViewMode, "mindmap" | "galaxy">) {
+  function changeMapView(mode: Extract<ViewMode, "mindmap" | "graph" | "galaxy">) {
     setActiveArea("knowledge");
     setViewMode(mode);
     setSelectedCaptureId(null);
@@ -236,7 +239,7 @@ export function useWorkspaceController({
     !showExportPanel;
   const showNodeInspector =
     activeArea === "knowledge" &&
-    Boolean(effectiveSelectedId) &&
+    Boolean(effectiveSelectedId && canMutateGraphNode(effectiveSelectedId)) &&
     !showSearchPanel &&
     !showExportPanel &&
     !showFirstRun;

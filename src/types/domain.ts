@@ -61,6 +61,7 @@ export type Capture = {
   id: ID;
   workspaceId: ID;
   projectId?: ID;
+  folderId?: ID;
   clientRequestId: ID;
   title?: string;
   rawText: string;
@@ -68,6 +69,24 @@ export type Capture = {
   createdBy: ID;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+};
+
+export type Folder = {
+  id: ID;
+  workspaceId: ID;
+  parentId?: ID;
+  name: string;
+  sortOrder: number;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+};
+
+export type CaptureTopicAssignment = {
+  captureId: ID;
+  topicContextId: ID;
+  workspaceId: ID;
+  assignedBy?: ID;
+  createdAt: ISODateTime;
 };
 
 export type CaptureSource = {

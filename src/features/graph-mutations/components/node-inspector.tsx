@@ -401,7 +401,11 @@ export function NodeInspector({
         </section>
       </div>
 
-      <div aria-live="polite" className={`mutation-status mutation-status--${status}`} role="status">
+      <div
+        aria-live={status === "error" ? "assertive" : "polite"}
+        className={`mutation-status mutation-status--${status}`}
+        role={status === "error" ? "alert" : "status"}
+      >
         {status === "success" ? <Check className="size-4" /> : null}
         {status !== "idle" ? t(locale, `workspace.mutation.${status}`) : null}
       </div>

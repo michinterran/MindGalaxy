@@ -20,6 +20,15 @@ import {
   createCapture,
   type CreateCaptureResponse,
 } from "@/features/capture/api/capture-client";
+import { createLibraryOrganizerActions } from "@/features/library-organizer/api/library-organizer-client";
+import {
+  CaptureOrganizationPicker,
+} from "@/features/library-organizer/components/capture-organization-picker";
+import {
+  applyCaptureOrganization,
+  captureOrganizationSnapshot,
+  type CaptureOrganizationValue,
+} from "@/features/library-organizer/model/capture-organization";
 import { DEFAULT_LOCALE, formatInteger, t, type Locale } from "@/lib/i18n";
 
 type CapturePanelProps = {
@@ -34,6 +43,7 @@ type CapturePanelProps = {
 export type CaptureDraft = {
   rawText: string;
   title: string | null;
+  organizationFailed?: boolean;
 };
 
 type CaptureState =
@@ -77,6 +87,11 @@ export function CapturePanel({
   const [rawText, setRawText] = useState("");
   const [title, setTitle] = useState("");
   const [showTitle, setShowTitle] = useState(false);
+  const [organization, setOrganization] = useState<CaptureOrganizationValue>({ folderId: null, topicIds: [] });
+  const [organizationRetry, setOrganizationRetry] = useState<{
+    captureId: string;
+    value: CaptureOrganizationValue;
+  } | null>(null);
   const [state, setState] = useState<CaptureState>({
     kind: "idle",
     message: t(locale, "capture.status.idle"),
@@ -90,6 +105,29 @@ export function CapturePanel({
   const hasRawText = textLength > 0;
   const isHero = variant === "hero";
   const isSuccess = state.kind === "success";
+  const organizationActions = useMemo(
+    () => createLibraryOrganizerActions(workspaceId),
+    [workspaceId],
+  );
+
+  async function applyOrganization(captureId: string, selectedOrganization = organization) {
+    await applyCaptureOrganization(organizationActions, captureId, selectedOrganization);
+  }
+
+  function retryOrganization() {
+    if (!organizationRetry) return;
+    setState({ kind: "saving", message: t(locale, "workspace.organizer.destination.retrying") });
+    startTransition(async () => {
+      try {
+        await applyOrganization(organizationRetry.captureId, organizationRetry.value);
+        setOrganizationRetry(null);
+        setOrganization((current) => ({ ...current, topicIds: [] }));
+        setState({ kind: "success", message: t(locale, "capture.status.success") });
+      } catch {
+        setState({ kind: "success", message: t(locale, "workspace.organizer.destination.warning") });
+      }
+    });
+  }
 
   function focusForNextCapture() {
     setState({
@@ -154,17 +192,33 @@ export function CapturePanel({
           },
         });
 
+        let organizationFailed = false;
+        try {
+          await applyOrganization(result.capture.id);
+          setOrganizationRetry(null);
+        } catch {
+          organizationFailed = true;
+          setOrganizationRetry({
+            captureId: result.capture.id,
+            value: captureOrganizationSnapshot(organization),
+          });
+        }
+
         setTitle("");
         setRawText("");
         setShowTitle(false);
+        if (!organizationFailed) setOrganization((current) => ({ ...current, topicIds: [] }));
         requestRef.current = null;
         setState({
           kind: "success",
-          message: t(locale, "capture.status.success"),
+          message: t(locale, organizationFailed
+            ? "workspace.organizer.destination.warning"
+            : "capture.status.success"),
         });
         onCaptureCreated?.(result, {
           rawText: trimmed,
           title: trimmedTitle || null,
+          organizationFailed,
         });
         router.refresh();
       } catch (error) {
@@ -264,6 +318,16 @@ export function CapturePanel({
           </span>
         </div>
 
+        {!isSuccess ? (
+          <CaptureOrganizationPicker
+            defaultOpen={isHero}
+            locale={locale}
+            onChange={setOrganization}
+            value={organization}
+            workspaceId={workspaceId}
+          />
+        ) : null}
+
         <div
           aria-live="polite"
           className={`status-line status-line--${state.kind}`}
@@ -276,9 +340,16 @@ export function CapturePanel({
 
         {isSuccess ? (
           <div className="capture-panel__success-actions">
-            <button className="ghost-button" onClick={focusForNextCapture} type="button">
-              {t(locale, "capture.success.next")}
-            </button>
+            {organizationRetry ? (
+              <button className="ghost-button" disabled={isPending} onClick={retryOrganization} type="button">
+                {t(locale, "workspace.organizer.destination.retry")}
+              </button>
+            ) : null}
+            {!organizationRetry ? (
+              <button className="ghost-button" onClick={focusForNextCapture} type="button">
+                {t(locale, "capture.success.next")}
+              </button>
+            ) : null}
             {onViewKnowledge ? (
               <button
                 className="ghost-button capture-panel__success-primary"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Download, Map as MapIcon, Orbit } from "lucide-react";
+import { Download, Map as MapIcon, Orbit, Share2 } from "lucide-react";
 import { CaptureDrawer } from "@/components/capture-drawer";
 import { CapturePanel, type CaptureDraft } from "@/components/capture-panel";
 import { WorkspaceToolbar } from "@/components/workspace-toolbar";
@@ -12,6 +12,8 @@ import {
 } from "@/config/registry";
 import { ExportPanel } from "@/features/export/components/export-panel";
 import { KnowledgeMapClient } from "@/features/knowledge-map/components/knowledge-map-client";
+import { LibraryOrganizerContainer } from "@/features/library-organizer/components/library-organizer-container";
+import { shouldAutoOpenKnowledge } from "@/features/library-organizer/model/capture-organization";
 import type { CreateCaptureResponse } from "@/features/capture/api/capture-client";
 import {
   createGraphEdge,
@@ -39,7 +41,10 @@ import {
   getDemoGraphSnapshot,
   getEmptyGraphSnapshot,
 } from "@/features/knowledge-map/demo/demo-graph";
-import type { GraphSnapshot } from "@/features/knowledge-map/model/graph";
+import {
+  canMutateGraphNode,
+  type GraphSnapshot,
+} from "@/features/knowledge-map/model/graph";
 import type { RecentCapture } from "@/features/knowledge-map/model/readiness";
 import { projectGraphSnapshot } from "@/features/knowledge-map/model/projection";
 import { SearchCommandPanel } from "@/features/search/components/search-command-panel";
@@ -193,6 +198,8 @@ export function KnowledgeWorkspace({
   );
   const saveNodePosition = useCallback(
     (nodeId: string, position: { x: number; y: number }) => {
+      if (!canMutateGraphNode(nodeId)) return Promise.resolve();
+
       const previous = positionSaveQueueRef.current.get(nodeId) ?? Promise.resolve();
       const next = previous
         .catch(() => undefined)
@@ -246,7 +253,6 @@ export function KnowledgeWorkspace({
     },
     [],
   );
-
   return (
     <main className="mindgalaxy-app">
       <section className="workspace-shell">
@@ -300,8 +306,11 @@ export function KnowledgeWorkspace({
                 locale={locale}
                 onCaptureCreated={(result, draft) => {
                   rememberCapture(result, draft);
-                  controller.changeArea("knowledge");
+                  if (shouldAutoOpenKnowledge(Boolean(draft.organizationFailed))) {
+                    controller.changeArea("knowledge");
+                  }
                 }}
+                onViewKnowledge={() => controller.changeArea("knowledge")}
                 variant="hero"
                 workspaceId={workspace.id}
               />
@@ -321,6 +330,15 @@ export function KnowledgeWorkspace({
                       {t(locale, "workspace.view.mindmap")}
                     </button>
                     <button
+                      aria-pressed={controller.viewMode === "graph"}
+                      className={controller.viewMode === "graph" ? "is-active" : ""}
+                      onClick={() => controller.changeMapView("graph")}
+                      type="button"
+                    >
+                      <Share2 className="size-4" />
+                      {t(locale, "workspace.view.graph")}
+                    </button>
+                    <button
                       aria-pressed={controller.viewMode === "galaxy"}
                       className={controller.viewMode === "galaxy" ? "is-active" : ""}
                       onClick={() => controller.changeMapView("galaxy")}
@@ -337,21 +355,29 @@ export function KnowledgeWorkspace({
                   </button>
                 </div>
               ) : null}
-              <KnowledgeMapClient
-                graph={projection}
-                isDemo={graphState.isDemo}
-                locale={locale}
-                onNodePositionChange={saveNodePosition}
-                onNewCapture={controller.openCapturePanel}
-                onReconnectCapture={libraryActions.reconnectProcessing}
-                onRetryCapture={libraryActions.retryProcessing}
-                onSelect={controller.selectNode}
-                onSelectCapture={controller.selectCapture}
-                recentCaptures={visibleRecentCaptures}
-                selectedCaptureId={controller.selectedCaptureId}
-                selectedId={controller.effectiveSelectedId}
-                viewMode={controller.activeArea === "library" ? "list" : controller.viewMode}
-              />
+              {controller.activeArea === "library" ? (
+                <LibraryOrganizerContainer
+                  locale={locale}
+                  onOpenCapture={controller.selectCapture}
+                  workspaceId={workspace.id}
+                />
+              ) : (
+                <KnowledgeMapClient
+                  graph={projection}
+                  isDemo={graphState.isDemo}
+                  locale={locale}
+                  onNodePositionChange={saveNodePosition}
+                  onNewCapture={controller.openCapturePanel}
+                  onReconnectCapture={libraryActions.reconnectProcessing}
+                  onRetryCapture={libraryActions.retryProcessing}
+                  onSelect={controller.selectNode}
+                  onSelectCapture={controller.selectCapture}
+                  recentCaptures={visibleRecentCaptures}
+                  selectedCaptureId={controller.selectedCaptureId}
+                  selectedId={controller.effectiveSelectedId}
+                  viewMode={controller.viewMode}
+                />
+              )}
             </section>
           )}
           {controller.showSearchPanel ? (
